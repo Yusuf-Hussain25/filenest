@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronDownIcon, LogOutIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
+import { ChevronDownIcon, LogOutIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Logo from '../ui/Logo'
 import Avatar from '../ui/Avatar'
@@ -24,6 +24,7 @@ const Topbar = ({ onSearch }) => {
   };
 
   const accountItems = [
+    { label: 'Settings', icon: SettingsIcon, onClick: () => navigate('/settings') },
     { label: theme === 'light' ? 'Dark theme' : 'Light theme', icon: theme === 'light' ? MoonIcon : SunIcon, onClick: toggleTheme },
     { separator: true },
     { label: 'Sign out', icon: LogOutIcon, onClick: signOut, danger: true },

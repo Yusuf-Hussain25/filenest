@@ -2,6 +2,7 @@ import { sql } from "../config/db.js";
 import crypto from 'crypto'
 import { getSignedFileUrl } from "../utils/s3Helper.js";
 import { isUuid, serverError } from "../utils/http.js";
+import { sendText } from "./fileController.js";
 
 const PERMISSIONS = ["view", "download"];
 const TOKEN_RE = /^[a-f0-9]{32}$/;
@@ -253,6 +254,38 @@ export const updateShareLink = async (req, res) => {
         WHERE id = ${link.id} AND owner_id = ${req.user.id}
         RETURNING *`;
         return res.status(200).json({ share_link: updated });
+    } catch (error) {
+        return serverError(res, error);
+    }
+}
+
+// Text of a file in a share (the shared file itself, or any file inside a shared folder)
+// GET /api/shares/access/:token/text?file=<id>
+export const accessShareText = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const fileId = req.query.file;
+        if (!TOKEN_RE.test(token) || !isUuid(fileId)) {
+            return res.status(404).json({ error: "File not found in this share." });
+        }
+        const [link] = await sql`SELECT * FROM share_links WHERE token = ${token}`;
+        if (!link) return res.status(404).json({ error: "Share link not found or has been revoked." });
+        if (link.expires_at && new Date() > new Date(link.expires_at)) {
+            return res.status(410).json({ error: "This share link has expired." });
+        }
+
+        const [file] = await sql`
+        SELECT f.* FROM files f
+        LEFT JOIN folders p ON p.id = f.folder_id
+        WHERE f.id = ${fileId} AND f.owner_id = ${link.owner_id} AND f.is_trashed = false
+          AND (p.id IS NULL OR p.is_trashed = false)
+          AND (
+            (${link.resource_type} = 'file' AND f.id = ${link.resource_id})
+            OR (${link.resource_type} = 'folder' AND (f.folder_id = ${link.resource_id} OR ${link.resource_id}::uuid = ANY(p.path)))
+          )`;
+        if (!file) return res.status(404).json({ error: "File not found in this share." });
+
+        return sendText(res, file);
     } catch (error) {
         return serverError(res, error);
     }

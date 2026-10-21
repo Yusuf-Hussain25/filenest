@@ -7,7 +7,7 @@ export const NAV = [
     { to: "/recent", label: "Recent", short: "Recent", icon: ClockIcon },
     { to: "/starred", label: "Starred", short: "Starred", icon: StarIcon, count: "starred" },
     { to: "/shared", label: "Shared links", short: "Shared", icon: Link2Icon, count: "shared" },
-    { to: "/trash", label: "Trash", short: "Trash", icon: Trash2Icon, count: "trash_files" },
+    { to: "/trash", label: "Trash", short: "Trash", icon: Trash2Icon },
 ];
 
 // Folder pages count as "My Files" in the nav

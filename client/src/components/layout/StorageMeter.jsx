@@ -12,7 +12,7 @@ const StorageMeter = ({ used = 0, limit = 1, categories = [], compact = false })
         <span className="text-fg">{formatBytes(used)}</span> of {formatBytes(limit)} used
       </p>
       <div
-        className="mt-2 flex h-2 overflow-hidden rounded-full bg-surface-3"
+        className="mt-2 flex h-2 gap-[2px] overflow-hidden rounded-full bg-surface-3"
         role="meter"
         aria-label="Storage used"
         aria-valuemin={0}
@@ -24,7 +24,7 @@ const StorageMeter = ({ used = 0, limit = 1, categories = [], compact = false })
           [...categories].sort((a, b) => b.size - a.size).map((c) => (
             <span
               key={c.key}
-              className="h-full animate-[fill-bar_.8s_var(--ease-out)_both] first:rounded-l-full last:rounded-r-full"
+              className="h-full animate-[fill-bar_.8s_var(--ease-out)_both] first:rounded-l-full"
               style={{ width: `${(c.size / limit) * 100}%`, minWidth: c.size ? 3 : 0, background: CATEGORIES[c.key]?.color }}
               title={`${CATEGORIES[c.key]?.label}: ${formatBytes(c.size)}`}
             />

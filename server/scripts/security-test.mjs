@@ -159,6 +159,10 @@ const main = async () => {
     check('subfolder inside the share opens', (await anon.call('GET', `/api/shares/access/${folderLink.token}?folder=${sub.id}`)).status === 200);
     check("a folder outside the share doesn't", (await anon.call('GET', `/api/shares/access/${folderLink.token}?folder=${other.id}`)).status === 404);
     check("another user's folder doesn't", (await anon.call('GET', `/api/shares/access/${folderLink.token}?folder=${bobFolder.id}`)).status === 404);
+    const textInShare = await anon.call('GET', `/api/shares/access/${folderLink.token}/text?file=${file.id}`);
+    check('text of a file inside the shared folder opens', textInShare.status === 200 && textInShare.data.content === 'top secret');
+    check("text of a file outside the share doesn't", (await anon.call('GET', `/api/shares/access/${folderLink.token}/text?file=${loose.id}`)).status === 404);
+    check("text of another user's file doesn't", (await anon.call('GET', `/api/shares/access/${folderLink.token}/text?file=${bobFile.id}`)).status === 404);
     check('unknown token → 404', (await anon.call('GET', `/api/shares/access/${'0'.repeat(32)}`)).status === 404);
 
     await sql`UPDATE share_links SET expires_at = NOW() - interval '1 minute' WHERE id = ${folderLink.id}`;

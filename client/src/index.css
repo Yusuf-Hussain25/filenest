@@ -56,6 +56,14 @@
   --aurora-1: rgba(14, 165, 233, 0.20);
   --aurora-2: rgba(99, 102, 241, 0.12);
   --aurora-3: rgba(100, 116, 139, 0.14);
+
+  /* Storage categories (validated categorical palette, fixed order, dark steps) */
+  --cat-documents: #3987e5;
+  --cat-images: #d95926;
+  --cat-videos: #199e70;
+  --cat-audio: #c98500;
+  --cat-archives: #d55181;
+  --cat-other: #9085e9;
 }
 
 :root[data-theme="light"] {
@@ -80,6 +88,13 @@
   --aurora-1: rgba(14, 165, 233, 0.15);
   --aurora-2: rgba(99, 102, 241, 0.09);
   --aurora-3: rgba(100, 116, 139, 0.10);
+
+  --cat-documents: #2a78d6;
+  --cat-images: #eb6834;
+  --cat-videos: #1baf7a;
+  --cat-audio: #eda100;
+  --cat-archives: #e87ba4;
+  --cat-other: #6250d6;
 }
 
 /* Tokens exposed to Tailwind: bg-panel, text-fg-2, border-line, rounded-lg ... */

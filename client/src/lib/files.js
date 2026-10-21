@@ -38,14 +38,15 @@ export const previewMode = (mime = "") => {
     return "none";
 };
 
-// Storage categories from GET /api/drive/stats, with display colors
+// Storage categories from GET /api/drive/stats, in their fixed color order.
+// Colors are theme tokens (index.css) from a palette checked for color-blind separation.
 export const CATEGORIES = {
-    images: { label: "Images", color: "#8b5cf6" },
-    videos: { label: "Videos", color: "#f43f5e" },
-    audio: { label: "Audio", color: "#ec4899" },
-    documents: { label: "Documents", color: "#0ea5e9" },
-    archives: { label: "Archives", color: "#f59e0b" },
-    other: { label: "Other", color: "#94a3b8" },
+    documents: { label: "Documents", color: "var(--cat-documents)" },
+    images: { label: "Images", color: "var(--cat-images)" },
+    videos: { label: "Videos", color: "var(--cat-videos)" },
+    audio: { label: "Audio", color: "var(--cat-audio)" },
+    archives: { label: "Archives", color: "var(--cat-archives)" },
+    other: { label: "Other", color: "var(--cat-other)" },
 };
 
 export const SORT_OPTIONS = [

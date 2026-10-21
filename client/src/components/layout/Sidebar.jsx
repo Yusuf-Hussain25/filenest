@@ -41,9 +41,9 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="mt-auto rounded-2xl border border-line bg-surface p-3.5">
+      <Link to="/settings" className="mt-auto rounded-2xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong" aria-label="Storage details in Settings">
         <StorageMeter used={Number(user?.storage_used || 0)} limit={Number(user?.storage_limit || 1)} categories={stats?.categories || []} />
-      </div>
+      </Link>
     </aside>
   );
 };
