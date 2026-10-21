@@ -1,8 +1,11 @@
 import express from "express";
 import { accessShareLink, createShareLink, deleteShareLink, getUserShareLinks } from "../controllers/shareController.js";
 import { protect } from "../middleware/auth.js";
+import { requireUuidParam } from "../utils/http.js";
 
 const shareRouter = express.Router()
+
+shareRouter.param("id", requireUuidParam)
 
 // Public link access (anyone with the link)
 shareRouter.get("/access/:token", accessShareLink)

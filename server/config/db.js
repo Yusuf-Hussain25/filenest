@@ -29,15 +29,23 @@ const createPgSql = (connectionString) => {
         return { text, params };
     };
 
+    // Lazy like Neon's queries: runs once when awaited, or never if only passed to sql.transaction
     const sql = (strings, ...values) => {
         const query = compile(strings, values);
+        let promise;
+        const run = () => (promise ??= pool.query(query.text, query.params).then((r) => r.rows));
         return {
             query,
-            then: (resolve, reject) => pool.query(query.text, query.params).then((r) => r.rows).then(resolve, reject),
+            then: (resolve, reject) => run().then(resolve, reject),
+            catch: (reject) => run().catch(reject),
+            finally: (done) => run().finally(done),
         };
     };
 
     sql.unsafe = (raw) => ({ __unsafe: raw });
+
+    // Lets scripts exit cleanly
+    sql.end = () => pool.end();
 
     sql.transaction = async (queries) => {
         const conn = await pool.connect();

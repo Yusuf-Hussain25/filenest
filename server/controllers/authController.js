@@ -1,53 +1,75 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sql } from "../config/db.js";
+import { serverError } from "../utils/http.js";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Compared against when the email is unknown, so both paths take the same time
+const DUMMY_HASH = bcrypt.hashSync("filenest-timing-guard", 10);
 
-// Generates JWT access token and attaches it to response as HTTP-Only Cookie
-export const sendTokenResponse = (res, userId, statusCode = 200, extraData = {})=>{
-    const token = jwt.sign({id: userId}, process.env.JWT_SECRET, {expiresIn: "7d"})
-
-    const isProduction = process.env.NODE_ENV === "production"
-
-    res.cookie("token", token, {
+const cookieOptions = () => {
+    const isProduction = process.env.NODE_ENV === "production";
+    return {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? "none" : "lax",
+    };
+};
+
+// Signs a JWT and attaches it to the response as an httpOnly cookie (never in the body)
+export const sendTokenResponse = (res, userId, statusCode = 200, extraData = {})=>{
+    const token = jwt.sign({id: userId}, process.env.JWT_SECRET, {expiresIn: "7d", algorithm: "HS256"})
+
+    res.cookie("token", token, {
+        ...cookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
-    res.status(statusCode).json({token, ...extraData})
+    res.status(statusCode).json(extraData)
 }
 
 // Register new user
 // POST /api/auth/register
 export const registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
-        if(!name?.trim() || !email?.trim() || !password){
+        const { name, email, password } = req.body ?? {};
+        if(typeof name !== "string" || typeof email !== "string" || typeof password !== "string" || !name.trim() || !email.trim() || !password){
             return res.status(400).json({error: "Name, email, and password are required."})
+        }
+        if (name.trim().length > 80) {
+            return res.status(400).json({error: "Name must be 80 characters or fewer."})
         }
 
         const normalizedEmail = email.toLowerCase().trim();
+        if (!EMAIL_RE.test(normalizedEmail) || normalizedEmail.length > 255) {
+            return res.status(400).json({error: "Enter a valid email address."})
+        }
+        if (password.length < 8 || password.length > 128) {
+            return res.status(400).json({error: "Password must be 8 to 128 characters."})
+        }
 
         const [existing] = await sql`SELECT id FROM users WHERE email = ${normalizedEmail}`;
 
         if(existing){
-            return res.status(400).json({error: "User with this email already exists."})
+            return res.status(400).json({error: "An account with this email already exists. Log in instead."})
         }
 
-        const salt = await bcrypt.genSalt(10)
-        const hashedPassword = await bcrypt.hash(password, salt)
+        const hashedPassword = await bcrypt.hash(password, 10)
 
         const storageLimit = Number(process.env.MAX_STORAGE_PER_USER || 1073741824);
 
         const [user] = await sql`INSERT INTO users (name, email, password, storage_limit)
         VALUES (${name.trim()}, ${normalizedEmail}, ${hashedPassword}, ${storageLimit})
+        ON CONFLICT (email) DO NOTHING
         RETURNING id, name, email, storage_used, storage_limit, created_at, updated_at`;
+
+        if (!user) {
+            return res.status(400).json({error: "An account with this email already exists. Log in instead."})
+        }
 
         return sendTokenResponse(res, user.id, 201, {user});
     } catch (error) {
-        return res.status(500).json({error: error.message})
+        return serverError(res, error)
     }
 }
 
@@ -55,8 +77,8 @@ export const registerUser = async (req, res) => {
 // POST /api/auth/login
 export const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        if(!email?.trim() || !password){
+        const { email, password } = req.body ?? {};
+        if(typeof email !== "string" || typeof password !== "string" || !email.trim() || !password){
             return res.status(400).json({error: "Email and password are required."})
         }
 
@@ -64,12 +86,8 @@ export const loginUser = async (req, res) => {
 
         const [user] = await sql`SELECT id, name, email, password, storage_used, storage_limit, created_at, updated_at FROM users WHERE email = ${normalizedEmail}`;
 
-        if(!user){
-            return res.status(401).json({error: "Invalid email or password."})
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password)
-        if(!isMatch){
+        const isMatch = await bcrypt.compare(password, user?.password ?? DUMMY_HASH)
+        if(!user || !isMatch){
             return res.status(401).json({error: "Invalid email or password."})
         }
 
@@ -77,34 +95,20 @@ export const loginUser = async (req, res) => {
 
         return sendTokenResponse(res, user.id, 200, {user});
     } catch (error) {
-        return res.status(500).json({error: error.message})
+        return serverError(res, error)
     }
 }
 
 // Logout user & clear cookie
 // POST /api/auth/logout
 export const logoutUser = async (_req, res) => {
-    try {
-        const isProduction = process.env.NODE_ENV === "production";
-        res.clearCookie("token", {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
-        })
-
-        return res.status(200).json({message: "Logged out successfully."})
-    } catch (error) {
-        return res.status(500).json({error: error.message})
-    }
+    res.clearCookie("token", cookieOptions())
+    return res.status(200).json({message: "Logged out successfully."})
 }
 
 // Get current user profile & storage info
 // GET /api/auth/me
 export const getMe = async (req, res) => {
-    try {
-        // req.user is already loaded by protect middleware
-        return res.status(200).json({user: req.user})
-    } catch (error) {
-        return res.status(500).json({error: error.message})
-    }
+    // req.user is already loaded by protect middleware
+    return res.status(200).json({user: req.user})
 }

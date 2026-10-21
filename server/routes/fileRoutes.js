@@ -1,9 +1,12 @@
 import express from "express";
 import { protect } from "../middleware/auth.js";
+import { requireUuidParam } from "../utils/http.js";
 import { upload } from "../middleware/upload.js";
 import { getFilePreviewUrl, getFiles, moveFile, permanentDeleteFile, renameFile, restoreFile, softDeleteFile, uploadFiles } from "../controllers/fileController.js";
 
-const fileRouter = express.Router();
+const fileRouter = express.Router()
+
+fileRouter.param("id", requireUuidParam);
 
 // All file routes require authentication
 fileRouter.use(protect);

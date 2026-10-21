@@ -40,11 +40,12 @@ export const softDeleteFolderHierarchy = async (folderId, ownerId) => {
 
     const fileIds = files.map((f)=> f.id)
 
+    // Items trashed earlier keep their own trashed_at, so restoring this folder leaves them in the Trash
     await Promise.all([
         sql`
         UPDATE folders
         SET is_trashed = true, trashed_at = ${now}, updated_at = NOW()
-        WHERE id = ANY(${allFolderIds}::uuid[]) AND owner_id = ${ownerId}
+        WHERE id = ANY(${allFolderIds}::uuid[]) AND owner_id = ${ownerId} AND is_trashed = false
         `,
         fileIds.length > 0 ? sql`
         UPDATE files
@@ -56,22 +57,46 @@ export const softDeleteFolderHierarchy = async (folderId, ownerId) => {
     ])
 }
 
-// Restore a folder and all its contents (recursive subfolders & files).
-export const restoreFolderHierarchy = async (folderId, ownerId) => {
-    const allFolderIds = await getFolderHierarchyIds(folderId, ownerId)
+// Point every descendant of a folder at the folder's new location (newBasePath = the folder's own path).
+export const rebaseFolderPaths = async (folderId, newBasePath, ownerId) => {
+    await sql`
+    UPDATE folders
+    SET path = ${newBasePath}::uuid[] || ARRAY[${folderId}::uuid] || path[array_position(path, ${folderId}::uuid) + 1 : cardinality(path)],
+        updated_at = NOW()
+    WHERE owner_id = ${ownerId} AND ${folderId}::uuid = ANY(path)`;
+}
+
+// Restore a folder and everything that was trashed together with it. If its parent is gone or
+// still in the Trash, the folder comes back at the top of My Files. Returns the new parent id.
+export const restoreFolderHierarchy = async (folder, ownerId) => {
+    const allFolderIds = await getFolderHierarchyIds(folder.id, ownerId)
+
+    let parentId = folder.parent_id;
+    if (parentId) {
+        const [parent] = await sql`SELECT id FROM folders WHERE id = ${parentId} AND owner_id = ${ownerId} AND is_trashed = false`;
+        if (!parent) {
+            parentId = null;
+            await sql`UPDATE folders SET parent_id = NULL, path = '{}'::uuid[] WHERE id = ${folder.id}`;
+            await rebaseFolderPaths(folder.id, [], ownerId);
+        }
+    }
 
     await Promise.all([
         sql`
         UPDATE folders
         SET is_trashed = false, trashed_at = NULL, updated_at = NOW()
         WHERE id = ANY(${allFolderIds}::uuid[]) AND owner_id = ${ownerId}
+          AND (id = ${folder.id} OR trashed_at = ${folder.trashed_at})
         `,
         sql`
         UPDATE files
         SET is_trashed = false, trashed_at = NULL, updated_at = NOW()
         WHERE folder_id = ANY(${allFolderIds}::uuid[]) AND owner_id = ${ownerId}
+          AND trashed_at = ${folder.trashed_at}
         `
     ])
+
+    return parentId;
 }
 
 // Permanently delete a folder and all its contents (recursive subfolders & files).

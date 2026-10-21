@@ -3,7 +3,7 @@ import { BUCKET_NAME, client } from "../config/s3.js"
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner"
 
 
-// Upload file to Neon Object Storage
+// Upload file to S3-compatible storage
 export const uploadToStorage = async (fileBuffer, key, mimeType) => {
     const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -15,16 +15,24 @@ export const uploadToStorage = async (fileBuffer, key, mimeType) => {
     return {s3Key: key};
 }
 
-// Get presigned download/preview URL for a file (valid for 10 hour)
-export const getSignedFileUrl = async (key) => {
+// Content-Disposition with a UTF-8 file name (RFC 6266 / 5987)
+const contentDisposition = (type, filename) => {
+    const fallback = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");
+    return `${type}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+};
+
+// Presigned URL for a file, valid for 1 hour. `download` makes browsers save it under its
+// Filenest name instead of opening it.
+export const getSignedFileUrl = async (key, { download = false, filename } = {}) => {
     const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
-        Key: key
+        Key: key,
+        ...(filename ? { ResponseContentDisposition: contentDisposition(download ? "attachment" : "inline", filename) } : {}),
     });
-    return await getSignedUrl(client, command, {expiresIn: 36000})
+    return await getSignedUrl(client, command, {expiresIn: 3600})
 }
 
-// Permanently delete an object and its versions from Neon Object Storage
+// Permanently delete an object and its versions from storage
 export const deleteFromStorage = async (key) => {
      if (!key) return;
      try {
@@ -49,7 +57,7 @@ export const deleteFromStorage = async (key) => {
      }
 }
 
-// Batch permanently delete multiple keys from Neon Object Storage
+// Batch permanently delete multiple keys from storage
 export const deleteMultipleFromStorage  = async (keys) => {
     if(!keys?.length) return;
     await Promise.all(keys.map(deleteFromStorage))

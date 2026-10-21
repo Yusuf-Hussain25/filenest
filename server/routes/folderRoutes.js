@@ -1,8 +1,11 @@
 import express from "express";
 import { protect } from "../middleware/auth.js";
+import { requireUuidParam } from "../utils/http.js";
 import { createFolder, getFolderDetails, getFolders, moveFolder, permanentDeleteFolder, renameFolder, restoreFolder, softDeleteFolder } from "../controllers/folderController.js";
 
 const folderRouter = express.Router()
+
+folderRouter.param("id", requireUuidParam)
 
 folderRouter.use(protect)
 
