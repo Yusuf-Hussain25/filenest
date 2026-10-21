@@ -1,6 +1,7 @@
 import express from "express";
 import { accessShareLink, accessShareText, createShareLink, deleteShareLink, getUserShareLinks, updateShareLink } from "../controllers/shareController.js";
 import { protect } from "../middleware/auth.js";
+import { shareZip } from "../controllers/zipController.js";
 import { requireUuidParam } from "../utils/http.js";
 
 const shareRouter = express.Router()
@@ -10,6 +11,7 @@ shareRouter.param("id", requireUuidParam)
 // Public link access (anyone with the link)
 shareRouter.get("/access/:token", accessShareLink)
 shareRouter.get("/access/:token/text", accessShareText)
+shareRouter.get("/access/:token/zip", shareZip)
 
 // Protected share management endpoints
 shareRouter.use(protect)

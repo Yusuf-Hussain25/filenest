@@ -115,6 +115,8 @@ const main = async () => {
     check('move own folder into it → 404', (await b.call('PATCH', `/api/folders/${bobFolder.id}/move`, { target_parent: folder.id })).status === 404);
     check('rename → 404', (await b.call('PATCH', `/api/folders/${folder.id}/rename`, { name: 'Hacked' })).status === 404);
     check('star → 404', (await b.call('PATCH', `/api/folders/${folder.id}/star`, { starred: true })).status === 404);
+    check('ZIP of her folder → 404', (await b.call('GET', `/api/folders/${folder.id}/zip?check=1`)).status === 404);
+    check('ZIP of a selection with her items → 404', (await b.call('GET', `/api/drive/zip?check=1&files=${bobFile.id}&folders=${folder.id}`)).status === 404);
     check('folder upload into it → 404', (await b.call('POST', '/api/folders/paths', { parent_id: folder.id, paths: ['Intruder/Deep'] })).status === 404);
     check('trash → 404', (await b.call('DELETE', `/api/folders/${folder.id}`)).status === 404);
 
@@ -171,6 +173,12 @@ const main = async () => {
     const signed = await fetch(pubFile.data.file.url);
     check('signed URL serves the file', signed.ok && (await signed.text()) === 'loose file');
 
+    check('view-only folder link refuses a ZIP → 403', (await anon.call('GET', `/api/shares/access/${folderLink.token}/zip?check=1`)).status === 403);
+    await a.call('PATCH', `/api/shares/${folderLink.id}`, { permission: 'download' });
+    const zipCheck = await anon.call('GET', `/api/shares/access/${folderLink.token}/zip?check=1`);
+    check('download link ZIPs the shared folder', zipCheck.status === 200 && zipCheck.data.files >= 1);
+    check("download link can't ZIP a folder outside the share", (await anon.call('GET', `/api/shares/access/${folderLink.token}/zip?check=1&folder=${other.id}`)).status === 404);
+    await a.call('PATCH', `/api/shares/${folderLink.id}`, { permission: 'view' });
     const pubFolder = await anon.call('GET', `/api/shares/access/${folderLink.token}`);
     check('folder link lists its files', pubFolder.status === 200 && pubFolder.data.files?.length === 1);
     check('view-only link has no download URL', pubFolder.data.files?.[0]?.download_url === null);

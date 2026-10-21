@@ -33,6 +33,12 @@ export const getObjectSize = async (key) => {
     }
 };
 
+// Readable stream of a stored object (for ZIP downloads)
+export const getObjectStream = async (key) => {
+    const { Body } = await client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    return Body;
+};
+
 // First `limit` bytes of an object as UTF-8 text
 export const readTextFromStorage = async (key, limit) => {
     const { Body, ContentRange } = await client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key, Range: `bytes=0-${limit - 1}` }));

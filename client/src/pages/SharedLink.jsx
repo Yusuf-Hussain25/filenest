@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRightIcon, ClockIcon, DownloadIcon, EyeIcon, Link2OffIcon, ShieldCheckIcon, TimerOffIcon } from 'lucide-react'
 import api from '../config/api'
+import { downloadZip } from '../lib/download'
 import { useAuth } from '../context/AuthContext'
 import { useDriveData } from '../hooks/useDriveData'
 import Logo from '../components/ui/Logo'
@@ -128,9 +129,16 @@ const SharedLink = () => {
                     <FolderGlyph size={30} open /> {data.folder.name}
                   </h1>
                 </div>
-                <p className="text-sm text-fg-3">
-                  {[data.subfolders.length && pluralize(data.subfolders.length, 'folder'), files.length && pluralize(files.length, 'file')].filter(Boolean).join(' · ') || 'Empty folder'}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-fg-3">
+                    {[data.subfolders.length && pluralize(data.subfolders.length, 'folder'), files.length && pluralize(files.length, 'file')].filter(Boolean).join(' · ') || 'Empty folder'}
+                  </p>
+                  {canDownload && (files.length > 0 || data.subfolders.length > 0) && (
+                    <button className="btn btn-primary btn-sm" onClick={() => downloadZip(`/api/shares/access/${token}/zip`, folderId ? { folder: folderId } : {})}>
+                      <DownloadIcon size={15} /> Download all
+                    </button>
+                  )}
+                </div>
               </div>
 
               {data.subfolders.length > 0 && (

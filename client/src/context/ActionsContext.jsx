@@ -5,6 +5,7 @@ import { DownloadIcon, EyeIcon, FolderInputIcon, FolderOpenIcon, FolderPlusIcon,
 import api, { errorMessage } from "../config/api";
 import { emitDriveChange } from "../lib/events";
 import { isFolder } from "../lib/files";
+import { downloadZip, saveFrom } from "../lib/download";
 import { useAuth } from "./AuthContext";
 import NameModal from "../components/drive/NameModal";
 import MoveModal from "../components/drive/MoveModal";
@@ -119,14 +120,13 @@ export const ActionsProvider = ({ children }) => {
         }
     }, [changed, restore]);
 
-    const download = useCallback(async (file) => {
+    // Files download from storage directly; folders come as a ZIP streamed by the API
+    const download = useCallback(async (item) => {
+        if (isFolder(item)) return downloadZip(`/api/folders/${item.id}/zip`);
         try {
-            const { data } = await api.get(`/api/files/${file.id}/preview`, { params: { download: 1 } });
+            const { data } = await api.get(`/api/files/${item.id}/preview`, { params: { download: 1 } });
             // The signed URL answers with Content-Disposition: attachment, so this saves the file
-            const a = Object.assign(document.createElement("a"), { href: data.url, rel: "noopener" });
-            document.body.append(a);
-            a.click();
-            a.remove();
+            saveFrom(data.url);
         } catch (err) {
             toast.error(errorMessage(err, "Could not download the file."));
         }
@@ -137,7 +137,7 @@ export const ActionsProvider = ({ children }) => {
         const folder = isFolder(item);
         return [
             { label: folder ? "Open" : "Preview", icon: folder ? FolderOpenIcon : EyeIcon, onClick: () => open(item, list) },
-            !folder && { label: "Download", icon: DownloadIcon, onClick: () => download(item) },
+            { label: folder ? "Download as ZIP" : "Download", icon: DownloadIcon, onClick: () => download(item) },
             { label: item.is_shared ? "Manage link" : "Share link", icon: Link2Icon, onClick: () => setDialog({ type: "share", item }) },
             { separator: true },
             { label: item.is_starred ? "Remove from Starred" : "Add to Starred", icon: item.is_starred ? StarOffIcon : StarIcon, onClick: () => toggleStar(item) },
