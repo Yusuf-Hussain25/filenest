@@ -1,81 +1,43 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import toast from "react-hot-toast";
 import api from "../config/api";
+import { useAuth } from "./AuthContext";
 
+// 1.0 drive state, kept until the app shell is rebuilt. Auth now comes from AuthContext.
 const AppContext = createContext()
 
-const ROOT_BREADCRUMB = [{id: null, name: "My Drive"}]
+const ROOT_BREADCRUMB = [{id: null, name: "My Files"}]
 const getErrMsg = (err, fallback) => err.response?.data?.error || fallback;
 
 export const AppProvider = ({children})=>{
+    const auth = useAuth()
+    const user = auth.user
 
-     const [user, setUser] = useState(null)
-     const [isLoading, setIsLoading] = useState(true)
+    // Upload Global State
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
-     // Upload Global State
-      const [isUploading, setIsUploading] = useState(false);
-      const [uploadProgress, setUploadProgress] = useState(0);
+    // Drive View State
+    const [currentFolderId, setCurrentFolderId] = useState(null)
+    const [breadcrumbs, setBreadcrumbs] = useState(ROOT_BREADCRUMB)
+    const [folders, setFolders] = useState([])
+    const [files, setFiles] = useState([]);
+    const [isDriveLoading, setIsDriveLoading] = useState(false)
 
-      // Drive View State
-      const [currentFolderId, setCurrentFolderId] = useState(null)
-      const [breadcrumbs, setBreadcrumbs] = useState(ROOT_BREADCRUMB)
-      const [folders, setFolders] = useState([])
-      const [files, setFiles] = useState([]);
-      const [isDriveLoading, setIsDriveLoading] = useState(false)
-
-      // Filter & Sort State
-      const [searchQuery, setSearchQuery] = useState("")
-      const [sortBy, setSortBy] = useState("name_asc")
-
-     // Refresh User Profile & Storage Stats
-     const refreshUser = useCallback(async ()=>{
-        try {
-            const {data} = await api.get("/api/auth/me");
-            setUser(data.user)
-            return data.user;
-        } catch (error) {
-            setUser(null)
-            return null
-        }
-     },[])
-
-     // Check Auth Status on App Load
-     useEffect(()=>{
-        refreshUser().finally(()=> setIsLoading(false))
-     },[refreshUser])
-
-    // Auth Actions Helper
-    const authAction = async (requestFn, successMsg, errorFallback)=>{
-        try {
-            const {data} = await requestFn();
-            setUser(data.user)
-            if(successMsg) toast.success(successMsg)
-                return true;
-        } catch (error) {
-             toast.error(getErrMsg(error, errorFallback))
-             return false
-        }
-    }
-
-    const login = (email, password)=>{
-        return authAction(()=> api.post("/api/auth/login", {email, password}), "Welcome back!", "Login failed")
-    }
-
-    const register = (name, email, password)=>{
-        return authAction(()=> api.post("/api/auth/register", {name, email, password}), "Account created successfully!", "Registration failed")
-    }
+    // Filter & Sort State
+    const [searchQuery, setSearchQuery] = useState("")
+    const [sortBy, setSortBy] = useState("name_asc")
 
     const logout = async ()=>{
         try {
-            await api.post("/api/auth/logout")
-            setUser(null)
+            await auth.logout()
             toast.success("Logged out")
         } catch (error) {
-            toast.error("Logout error");
+            toast.error(getErrMsg(error, "Logout error"));
         }
     }
 
-     const fetchDriveContent = useCallback(
+    const fetchDriveContent = useCallback(
         async (folderId = currentFolderId, search = searchQuery, sort = sortBy)=>{
             if(!user) return;
             setIsDriveLoading(true)
@@ -97,16 +59,16 @@ export const AppProvider = ({children})=>{
             }
         },
         [user, currentFolderId, searchQuery, sortBy]
-     )
+    )
 
-     const value = {
-        user, setUser, login, register, logout,
-        isLoading, isAuthenticated: !!user,
+    const value = {
+        user, logout,
+        isLoading: auth.isLoading, isAuthenticated: auth.isAuthenticated,
         isUploading,
         setIsUploading,
         uploadProgress,
         setUploadProgress,
-        refreshUser,
+        refreshUser: auth.refreshUser,
         currentFolderId,
         setCurrentFolderId,
         breadcrumbs,
@@ -120,11 +82,12 @@ export const AppProvider = ({children})=>{
         setSearchQuery,
         sortBy,
         setSortBy,
-     }
+    }
 
     return <AppContext.Provider value={value}>
         {children}
     </AppContext.Provider>
 }
 
+// eslint-disable-next-line react/only-export-components -- the hook lives next to its provider
 export const useApp = ()=> useContext(AppContext);
