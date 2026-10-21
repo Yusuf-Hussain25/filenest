@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { UploadCloudIcon } from 'lucide-react'
 import { useUploads } from '../../context/UploadContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
+import { entriesFromDrop } from '../../lib/folderEntries'
 
 const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
 
 // Drop files anywhere in the app to upload them to the folder you're in.
 const DropOverlay = () => {
-  const { uploadFiles } = useUploads();
+  const { uploadTree } = useUploads();
   const { here } = useWorkspace();
   const [active, setActive] = useState(false);
   const depth = useRef(0);
@@ -37,7 +38,9 @@ const DropOverlay = () => {
       e.preventDefault();
       depth.current = 0;
       setActive(false);
-      uploadFiles(e.dataTransfer.files, target.current.id, target.current.name);
+      // Folders keep their structure; entries must be read while the event is live
+      const { id, name } = target.current;
+      entriesFromDrop(e.dataTransfer).then((tree) => uploadTree(tree, id, name));
     };
     window.addEventListener('dragenter', onEnter);
     window.addEventListener('dragover', onOver);
@@ -49,7 +52,7 @@ const DropOverlay = () => {
       window.removeEventListener('dragleave', onLeave);
       window.removeEventListener('drop', onDrop);
     };
-  }, [uploadFiles]);
+  }, [uploadTree]);
 
   if (!active) return null;
 
@@ -59,7 +62,7 @@ const DropOverlay = () => {
         <span className="grid size-16 place-items-center rounded-2xl bg-accent-soft text-accent-text shadow-glow animate-[float_2s_ease-in-out_infinite]">
           <UploadCloudIcon size={30} />
         </span>
-        <p className="mt-5 text-lg font-semibold tracking-tight">Drop to upload</p>
+        <p className="mt-5 text-lg font-semibold tracking-tight">Drop files or folders to upload</p>
         <p className="mt-1 text-sm text-fg-3">Files go to <span className="font-medium text-fg">{here.name}</span></p>
       </div>
     </div>

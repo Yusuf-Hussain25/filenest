@@ -1,4 +1,4 @@
-import { FolderPlusIcon, PlusIcon, UploadIcon } from 'lucide-react'
+import { FolderPlusIcon, FolderUpIcon, PlusIcon, UploadIcon } from 'lucide-react'
 import Menu from '../ui/Menu'
 import { useActions } from '../../context/ActionsContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
@@ -6,10 +6,12 @@ import { useWorkspace } from '../../context/WorkspaceContext'
 // "New" button: upload files or create a folder in the folder you're in.
 // variant "fab" is the round floating button on phones.
 const NewMenu = ({ variant = 'button', align = 'start' }) => {
-  const { here, pickFiles } = useWorkspace();
+  const { here, pickFiles, pickFolder } = useWorkspace();
   const actions = useActions();
   const items = [
     { label: 'Upload files', icon: UploadIcon, onClick: pickFiles, hint: here.id ? `to ${here.name}` : undefined },
+    { label: 'Upload folder', icon: FolderUpIcon, onClick: pickFolder },
+    { separator: true },
     { label: 'New folder', icon: FolderPlusIcon, onClick: () => actions.newFolder(here.id, here.name) },
   ];
   return (

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import api from "../config/api";
 import { useDriveData } from "../hooks/useDriveData";
 import { useUploads } from "./UploadContext";
+import { entriesFromInput } from "../lib/folderEntries";
 
 const WorkspaceContext = createContext(null);
 const ROOT = { id: null, name: "My Files" };
@@ -9,9 +10,10 @@ const ROOT = { id: null, name: "My Files" };
 // Shared by the app shell: which folder you're in (uploads and "New folder" go there),
 // the hidden file picker, and the storage stats shown in the sidebar.
 export const WorkspaceProvider = ({ children }) => {
-    const { uploadFiles } = useUploads();
+    const { uploadFiles, uploadTree } = useUploads();
     const [here, setHereState] = useState(ROOT);
     const inputRef = useRef(null);
+    const folderInputRef = useRef(null);
     const stats = useDriveData(() => api.get("/api/drive/stats").then((r) => r.data), "stats");
 
     const setHere = useCallback((folder) => {
@@ -19,8 +21,9 @@ export const WorkspaceProvider = ({ children }) => {
     }, []);
 
     const pickFiles = useCallback(() => inputRef.current?.click(), []);
+    const pickFolder = useCallback(() => folderInputRef.current?.click(), []);
 
-    const value = useMemo(() => ({ here, setHere, pickFiles, stats: stats.data, statsLoading: stats.loading }), [here, setHere, pickFiles, stats.data, stats.loading]);
+    const value = useMemo(() => ({ here, setHere, pickFiles, pickFolder, stats: stats.data, statsLoading: stats.loading }), [here, setHere, pickFiles, pickFolder, stats.data, stats.loading]);
 
     return (
         <WorkspaceContext.Provider value={value}>
@@ -32,6 +35,17 @@ export const WorkspaceProvider = ({ children }) => {
                 hidden
                 onChange={(e) => {
                     uploadFiles(e.target.files, here.id, here.name);
+                    e.target.value = "";
+                }}
+            />
+            <input
+                ref={folderInputRef}
+                type="file"
+                webkitdirectory=""
+                multiple
+                hidden
+                onChange={(e) => {
+                    uploadTree(entriesFromInput(e.target.files), here.id, here.name);
                     e.target.value = "";
                 }}
             />

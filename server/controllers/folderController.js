@@ -53,6 +53,63 @@ export const createFolder = async (req, res) => {
     }
 }
 
+// Create a folder tree for a folder upload. Paths are relative to the parent ("Trip",
+// "Trip/Day 1"); folders that already exist (same name, any case) are reused, so dropping the
+// same folder twice merges into it. Returns { folders: { "Trip/Day 1": id, ... } }.
+// POST /api/folders/paths   { parent_id, paths: [...] }
+export const createFolderPaths = async (req, res) => {
+    try {
+        const parentId = parseFolderRef(req.body?.parent_id);
+        const paths = req.body?.paths;
+        if (parentId === undefined) return res.status(404).json({ error: "Parent folder not found." });
+        if (!Array.isArray(paths) || !paths.length || paths.length > 1000) {
+            return res.status(400).json({ error: "Send between 1 and 1000 folder paths." });
+        }
+
+        // Every path as clean segments, parents before children
+        const wanted = new Map();
+        for (const raw of paths) {
+            const parts = typeof raw === "string" ? raw.split("/").filter(Boolean) : [];
+            if (!parts.length || parts.length > 20) return res.status(400).json({ error: "Folder paths must be 1 to 20 levels deep." });
+            for (let depth = 1; depth <= parts.length; depth++) {
+                const segment = cleanName(parts[depth - 1], "Folder name");
+                if (segment.error) return res.status(400).json({ error: `${segment.error} ("${parts[depth - 1]}")` });
+                wanted.set(parts.slice(0, depth).join("/"), parts.slice(0, depth));
+            }
+        }
+
+        // "path" here is what a child's path column should be: the folder's ancestors plus itself
+        let rootPath = [];
+        if (parentId) {
+            const [parent] = await sql`SELECT id, path FROM folders WHERE id = ${parentId} AND owner_id = ${req.user.id} AND is_trashed = false`;
+            if (!parent) return res.status(404).json({ error: "Parent folder not found." });
+            rootPath = [...(parent.path || []), parent.id];
+        }
+
+        const ids = new Map([["", { id: parentId, path: rootPath }]]);
+        const ordered = [...wanted.entries()].sort((a, b) => a[1].length - b[1].length);
+        for (const [key, parts] of ordered) {
+            const parent = ids.get(parts.slice(0, -1).join("/"));
+            const name = parts[parts.length - 1].trim();
+            const [existing] = await sql`
+            SELECT id, path FROM folders
+            WHERE owner_id = ${req.user.id} AND parent_id IS NOT DISTINCT FROM ${parent.id}
+              AND lower(name) = lower(${name}) AND is_trashed = false
+            LIMIT 1`;
+            const folder = existing || (await sql`
+            INSERT INTO folders (name, parent_id, owner_id, path)
+            VALUES (${name}, ${parent.id}, ${req.user.id}, ${parent.path}::uuid[])
+            RETURNING id, path`)[0];
+            ids.set(key, { id: folder.id, path: [...(folder.path || []), folder.id] });
+        }
+
+        ids.delete("");
+        return res.status(201).json({ folders: Object.fromEntries([...ids].map(([k, v]) => [k, v.id])) });
+    } catch (error) {
+        return serverError(res, error);
+    }
+}
+
 // Get subfolders in a folder
 // GET /api/folders
 export const getFolders = async (req, res) => {

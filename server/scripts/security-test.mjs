@@ -115,6 +115,7 @@ const main = async () => {
     check('move own folder into it → 404', (await b.call('PATCH', `/api/folders/${bobFolder.id}/move`, { target_parent: folder.id })).status === 404);
     check('rename → 404', (await b.call('PATCH', `/api/folders/${folder.id}/rename`, { name: 'Hacked' })).status === 404);
     check('star → 404', (await b.call('PATCH', `/api/folders/${folder.id}/star`, { starred: true })).status === 404);
+    check('folder upload into it → 404', (await b.call('POST', '/api/folders/paths', { parent_id: folder.id, paths: ['Intruder/Deep'] })).status === 404);
     check('trash → 404', (await b.call('DELETE', `/api/folders/${folder.id}`)).status === 404);
 
     const ownText = await a.call('GET', `/api/files/${file.id}/text`);
@@ -126,6 +127,9 @@ const main = async () => {
     check('malformed folder filter → 404', (await a.call('GET', '/api/files?folder_id=abc')).status === 404);
     check('255+ character name → 400', (await a.call('PATCH', `/api/files/${file.id}/rename`, { name: 'x'.repeat(300) })).status === 400);
     check('name with a slash → 400', (await a.call('POST', '/api/folders', { name: 'a/b' })).status === 400);
+    const tree = await a.call('POST', '/api/folders/paths', { parent_id: folder.id, paths: ['Album/2026', 'album/2025'] });
+    check('folder upload builds the tree and merges same-name folders', tree.status === 201 && tree.data.folders['Album'] === tree.data.folders['album'] && Boolean(tree.data.folders['Album/2026']));
+    check('folder upload rejects bad names', (await a.call('POST', '/api/folders/paths', { paths: ['ok/' + 'x'.repeat(300)] })).status === 400);
     check('duplicate folder name → 400', (await a.call('POST', '/api/folders', { name: 'private' })).status === 400);
     check('% in search is literal text', ((await a.call('GET', '/api/files?search=%25')).data.files || []).length === 0);
     check('move a folder into its own subfolder → 400', (await a.call('PATCH', `/api/folders/${folder.id}/move`, { target_parent: sub.id })).status === 400);

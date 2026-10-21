@@ -50,7 +50,8 @@ const UploadPanel = () => {
             <li key={u.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
               <FileGlyph mime={u.type} size={32} />
               <div className="min-w-0 flex-1">
-                <p className={`truncate text-[13px] font-medium ${u.status === 'canceled' ? 'text-fg-3 line-through' : ''}`}>{u.name}</p>
+                <p className={`truncate text-[13px] font-medium ${u.status === 'canceled' ? 'text-fg-3 line-through' : ''}`} title={u.path}>{u.name}</p>
+                {u.path !== u.name && u.status !== 'error' && <p className="truncate text-[11px] text-fg-3">{u.path.split('/').slice(0, -1).join(' / ')}</p>}
                 {u.status === 'uploading' || u.status === 'queued' ? (
                   <div className="mt-1.5 flex items-center gap-2">
                     <div className="progress flex-1 !h-1.5"><span style={{ width: `${u.progress}%` }} /></div>

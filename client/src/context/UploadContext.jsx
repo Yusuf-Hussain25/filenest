@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { errorMessage } from "../config/api";
+import toast from "react-hot-toast";
+import api, { errorMessage } from "../config/api";
 import { uploadFile } from "../lib/upload";
+import { dirOf } from "../lib/folderEntries";
 import { emitDriveChange } from "../lib/events";
 import { useAuth } from "./AuthContext";
 
@@ -68,18 +70,50 @@ export const UploadProvider = ({ children }) => {
         });
     }, [commit, patch, scheduleRefresh, updateUser]);
 
-    const uploadFiles = useCallback((fileList, folderId = null, folderName = "My Files") => {
-        const picked = Array.from(fileList || []);
-        if (!picked.length) return 0;
-        const added = picked.map((file) => {
+    // entries: [{ file, folderId, folderName, path? }]
+    const enqueue = useCallback((entries) => {
+        if (!entries.length) return 0;
+        const added = entries.map(({ file, folderId, folderName, path }) => {
             const id = nextId++;
             files.current.set(id, file);
-            return { id, name: file.name, size: file.size, type: file.type, folderId, folderName, progress: 0, status: "queued" };
+            return { id, name: file.name, path: path || file.name, size: file.size, type: file.type, folderId, folderName, progress: 0, status: "queued" };
         });
         commit((list) => [...list, ...added]);
         pump();
         return added.length;
     }, [commit, pump]);
+
+    const uploadFiles = useCallback((fileList, folderId = null, folderName = "My Files") =>
+        enqueue(Array.from(fileList || []).map((file) => ({ file, folderId, folderName }))), [enqueue]);
+
+    // Folder upload: create the folder tree first, then upload every file into its folder.
+    // tree = { files: [{ file, path: "Trip/Day 1/a.jpg" }], dirs: ["Trip", "Trip/Day 1"] }
+    const uploadTree = useCallback(async (tree, parentId = null, parentName = "My Files") => {
+        if (!tree.dirs.length) return enqueue(tree.files.map(({ file }) => ({ file, folderId: parentId, folderName: parentName })));
+        let ids;
+        try {
+            const { data } = await api.post("/api/folders/paths", { parent_id: parentId, paths: tree.dirs });
+            ids = data.folders;
+        } catch (err) {
+            toast.error(errorMessage(err, "Could not create the folders for this upload."));
+            return 0;
+        }
+        emitDriveChange();
+        const topNames = [...new Set(tree.dirs.map((d) => d.split("/")[0]))];
+        if (!tree.files.length) {
+            toast.success(`Created ${topNames.length === 1 ? `"${topNames[0]}"` : `${topNames.length} folders`}`);
+            return 0;
+        }
+        return enqueue(tree.files.map(({ file, path }) => {
+            const dir = dirOf(path);
+            return {
+                file,
+                path,
+                folderId: dir ? ids[dir] : parentId,
+                folderName: dir ? dir.split("/")[0] : parentName,
+            };
+        }));
+    }, [enqueue]);
 
     const cancel = useCallback((id) => {
         const controller = controllers.current.get(id);
@@ -117,7 +151,7 @@ export const UploadProvider = ({ children }) => {
 
     useEffect(() => () => clearTimeout(refreshTimer.current), []);
 
-    const value = useMemo(() => ({ uploads, busy, uploadFiles, cancel, retry, clearFinished }), [uploads, busy, uploadFiles, cancel, retry, clearFinished]);
+    const value = useMemo(() => ({ uploads, busy, uploadFiles, uploadTree, cancel, retry, clearFinished }), [uploads, busy, uploadFiles, uploadTree, cancel, retry, clearFinished]);
 
     return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
 };
