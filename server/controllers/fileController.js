@@ -1,7 +1,7 @@
 import { sql } from "../config/db.js";
 import path from 'path'
 import crypto from 'crypto'
-import { deleteMultipleFromStorage, getSignedFileUrl, uploadToStorage } from "../utils/s3Helper.js";
+import { deleteMultipleFromStorage, getSignedFileUrl, readTextFromStorage, uploadToStorage } from "../utils/s3Helper.js";
 import { adjustUserStorage, cleanupShareLinks, permanentDeleteFileRecord } from "../services/storageService.js";
 import { cleanName, parseFolderRef, serverError } from "../utils/http.js";
 
@@ -22,6 +22,18 @@ export const listedFile = async (file) => ({
     ...publicFile(file),
     thumb_url: file.mime_type?.startsWith("image/") ? await getSignedFileUrl(file.s3_key) : null,
 });
+
+const TEXT_LIMIT = 512 * 1024;
+const isTextLike = (mime = "") => mime.startsWith("text/") || /(json|javascript|xml|yaml|x-sh|x-python|markdown)/.test(mime);
+
+// Responds with { content, truncated } for text-like files (shared with public links)
+export const sendText = async (res, file) => {
+    if (!isTextLike(file.mime_type)) {
+        return res.status(415).json({ error: "This file isn't text." });
+    }
+    const { content, truncated } = await readTextFromStorage(file.s3_key, TEXT_LIMIT);
+    return res.status(200).json({ content, truncated });
+};
 
 // Multer reads multipart file names as latin1; turn them back into UTF-8 (e.g. "café.pdf")
 const decodeName = (name) => {
@@ -158,23 +170,43 @@ export const getFiles = async (req, res) => {
     }
 }
 
-// Get presigned preview URL, or a download URL with ?download=1
+// Get presigned preview URL, or a download URL with ?download=1. Also returns where the file
+// lives and its public link, for the details panel.
 // GET /api/files/:id/preview
 export const getFilePreviewUrl = async (req, res) => {
     try {
         const [file] = await sql`
-        SELECT * FROM files WHERE id = ${req.params.id} AND owner_id = ${req.user.id}
+        SELECT f.*, p.name AS folder_name FROM files f
+        LEFT JOIN folders p ON p.id = f.folder_id
+        WHERE f.id = ${req.params.id} AND f.owner_id = ${req.user.id}
         `;
 
         if(!file){
             return res.status(404).json({ error: "File not found." });
         }
         const download = req.query.download === "1" || req.query.download === "true";
-        const url = await getSignedFileUrl(file.s3_key, { download, filename: file.name })
-        // Feeds "Recent"
-        await sql`UPDATE files SET last_opened_at = NOW() WHERE id = ${file.id}`;
-        return res.status(200).json({ url, file: publicFile(file) });
+        const [url, [link]] = await Promise.all([
+            getSignedFileUrl(file.s3_key, { download, filename: file.name }),
+            sql`SELECT id, permission, expires_at, access_count, created_at FROM share_links WHERE resource_id = ${file.id} AND owner_id = ${req.user.id}`,
+            // Feeds "Recent"
+            sql`UPDATE files SET last_opened_at = NOW() WHERE id = ${file.id}`,
+        ]);
+        return res.status(200).json({ url, file: publicFile(file), share_link: link ?? null });
 
+    } catch (error) {
+        return serverError(res, error);
+    }
+}
+
+// Text of a text-like file (first 512 KB) for the in-browser viewer
+// GET /api/files/:id/text
+export const getFileText = async (req, res) => {
+    try {
+        const [file] = await sql`SELECT * FROM files WHERE id = ${req.params.id} AND owner_id = ${req.user.id}`;
+        if(!file){
+            return res.status(404).json({ error: "File not found." });
+        }
+        return sendText(res, file);
     } catch (error) {
         return serverError(res, error);
     }

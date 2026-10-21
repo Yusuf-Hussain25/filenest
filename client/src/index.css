@@ -4,9 +4,11 @@
 /* ---------------------------------------------------------------------------
    Filenest 2.0 design tokens: "Skyline"
    Light is the default (data-theme="light" on <html>); the toggle switches to the
-   dark palette, saved per browser by src/lib/theme.js.
+   dark palette, saved per browser by src/lib/theme.js. Any element with
+   data-theme="dark" (the file viewer) uses the dark palette whatever the page theme.
 --------------------------------------------------------------------------- */
-:root {
+:root,
+[data-theme="dark"] {
   --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
 

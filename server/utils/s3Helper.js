@@ -15,6 +15,15 @@ export const uploadToStorage = async (fileBuffer, key, mimeType) => {
     return {s3Key: key};
 }
 
+// First `limit` bytes of an object as UTF-8 text
+export const readTextFromStorage = async (key, limit) => {
+    const { Body, ContentRange } = await client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key, Range: `bytes=0-${limit - 1}` }));
+    const bytes = await Body.transformToByteArray();
+    // "bytes 0-524287/1048576": the part after the slash is the full size
+    const total = Number(ContentRange?.split("/")[1]) || bytes.length;
+    return { content: Buffer.from(bytes).toString("utf8"), truncated: total > bytes.length };
+};
+
 // Content-Disposition with a UTF-8 file name (RFC 6266 / 5987)
 const contentDisposition = (type, filename) => {
     const fallback = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");

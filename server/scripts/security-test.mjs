@@ -83,12 +83,14 @@ const main = async () => {
         check(`${method} ${path.replace(/[0-9a-f-]{36}/, ':id')} → 401`, (await anon.call(method, path)).status === 401);
     }
     check('upload → 401', (await upload(anon, 'x.txt', 'x')).status === 401);
+    check('GET /api/files/:id/text → 401', (await anon.call('GET', `/api/files/${file.id}/text`)).status === 401);
     const forged = client();
     forged.setCookie('token=eyJhbGciOiJIUzI1NiJ9.eyJpZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCJ9.c2lnbmF0dXJl');
     check('forged token → 401', (await forged.call('GET', '/api/files')).status === 401);
 
     console.log("\nOther users can't reach Alice's files");
     check('preview / download URL → 404', (await b.call('GET', `/api/files/${file.id}/preview`)).status === 404);
+    check('read its text → 404', (await b.call('GET', `/api/files/${file.id}/text`)).status === 404);
     check('rename → 404', (await b.call('PATCH', `/api/files/${file.id}/rename`, { name: 'hacked.txt' })).status === 404);
     check('move to own folder → 404', (await b.call('PATCH', `/api/files/${file.id}/move`, { target_folder: bobFolder.id })).status === 404);
     check('trash → 404', (await b.call('DELETE', `/api/files/${file.id}`)).status === 404);
@@ -114,6 +116,9 @@ const main = async () => {
     check('rename → 404', (await b.call('PATCH', `/api/folders/${folder.id}/rename`, { name: 'Hacked' })).status === 404);
     check('star → 404', (await b.call('PATCH', `/api/folders/${folder.id}/star`, { starred: true })).status === 404);
     check('trash → 404', (await b.call('DELETE', `/api/folders/${folder.id}`)).status === 404);
+
+    const ownText = await a.call('GET', `/api/files/${file.id}/text`);
+    check('owner can read the text of her file', ownText.status === 200 && ownText.data.content === 'top secret');
 
     console.log('\nInput handling');
     const badId = await a.call('GET', '/api/files/not-a-uuid/preview');

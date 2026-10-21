@@ -9,7 +9,7 @@ import { useAuth } from "./AuthContext";
 import NameModal from "../components/drive/NameModal";
 import MoveModal from "../components/drive/MoveModal";
 import ShareModal from "../components/drive/ShareModal";
-import FilePreview from "../components/files/FilePreview";
+import FilePreview from "../components/preview/FilePreview";
 
 const ActionsContext = createContext(null);
 
@@ -22,6 +22,8 @@ export const ActionsProvider = ({ children }) => {
     const navigate = useNavigate();
     const { refreshUser } = useAuth();
     const [dialog, setDialog] = useState(null); // { type, item, ... }
+    // The viewer is its own layer, so share / rename / move dialogs can open on top of it
+    const [preview, setPreview] = useState(null); // { item, list }
     const close = useCallback(() => setDialog(null), []);
 
     const changed = useCallback(() => {
@@ -30,7 +32,7 @@ export const ActionsProvider = ({ children }) => {
 
     const open = useCallback((item, list = []) => {
         if (isFolder(item)) navigate(`/folder/${item.id}`);
-        else setDialog({ type: "preview", item, list: list.filter((i) => !isFolder(i)) });
+        else setPreview({ item, list: list.filter((i) => !isFolder(i)) });
     }, [navigate]);
 
     const newFolder = useCallback((parentId = null, parentName = "My Files") => {
@@ -163,6 +165,15 @@ export const ActionsProvider = ({ children }) => {
     return (
         <ActionsContext.Provider value={value}>
             {children}
+            {preview && (
+                <FilePreview
+                    key={preview.item.id}
+                    item={preview.item}
+                    list={preview.list}
+                    onNavigate={(item) => setPreview((p) => ({ ...p, item }))}
+                    onClose={() => setPreview(null)}
+                />
+            )}
             {dialog?.type === "new-folder" && (
                 <NameModal
                     open
@@ -191,7 +202,6 @@ export const ActionsProvider = ({ children }) => {
             )}
             {dialog?.type === "move" && <MoveModal item={dialog.item} onClose={close} onMove={moveItem} />}
             {dialog?.type === "share" && <ShareModal item={dialog.item} onClose={close} />}
-            {dialog?.type === "preview" && <FilePreview file={dialog.item} onClose={close} />}
         </ActionsContext.Provider>
     );
 };
