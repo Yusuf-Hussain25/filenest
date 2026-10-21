@@ -1,6 +1,6 @@
 import { sql } from "../config/db.js";
 import { serverError } from "../utils/http.js";
-import { publicFile } from "./fileController.js";
+import { listedFile } from "./fileController.js";
 
 // SQL expression that sorts a file into one of the storage categories shown in the app
 const CATEGORY = sql.unsafe(`CASE
@@ -31,7 +31,7 @@ export const getRecent = async (req, res) => {
         WHERE f.owner_id = ${req.user.id} AND f.is_trashed = false
         ORDER BY activity_at DESC
         LIMIT ${limit}`;
-        return res.status(200).json({ files: rows.map(publicFile) });
+        return res.status(200).json({ files: await Promise.all(rows.map(listedFile)) });
     } catch (error) {
         return serverError(res, error);
     }
@@ -53,7 +53,7 @@ export const getStarred = async (req, res) => {
             WHERE f.owner_id = ${req.user.id} AND f.is_starred = true AND f.is_trashed = false
             ORDER BY f.name ASC`,
         ]);
-        return res.status(200).json({ files: files.map(publicFile), folders });
+        return res.status(200).json({ files: await Promise.all(files.map(listedFile)), folders });
     } catch (error) {
         return serverError(res, error);
     }
@@ -81,7 +81,7 @@ export const searchDrive = async (req, res) => {
             ORDER BY (lower(f.name) LIKE lower(${`${term}%`})) DESC, f.name ASC
             LIMIT 20`,
         ]);
-        return res.status(200).json({ files: files.map(publicFile), folders });
+        return res.status(200).json({ files: await Promise.all(files.map(listedFile)), folders });
     } catch (error) {
         return serverError(res, error);
     }

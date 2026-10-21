@@ -1,111 +1,51 @@
-import React, { useRef } from 'react'
-import { useApp } from '../../context/AppContext'
 import { Link, useLocation } from 'react-router-dom'
-import { FolderPlusIcon, HardDriveIcon, HardDriveUploadIcon, PlusIcon, Trash2Icon, UsersIcon } from 'lucide-react'
-import { Dropdown, DropdownItem } from '../legacy/Dropdown'
-import { ProgressBar } from '../legacy/ProgressBar'
-import { formatBytes } from '../../assets/assets'
-import { useDrive } from '../../hooks/useDrive'
+import Logo from '../ui/Logo'
+import NewMenu from './NewMenu'
+import StorageMeter from './StorageMeter'
+import { NAV, isNavActive } from './nav'
+import { useAuth } from '../../context/AuthContext'
+import { useWorkspace } from '../../context/WorkspaceContext'
 
-const Sidebar = ({onCreateFolderClick, isMobileOpen, setIsMobileOpen}) => {
+// Desktop sidebar: New, sections with live counts, storage meter
+const Sidebar = () => {
+  const { user } = useAuth();
+  const { stats } = useWorkspace();
+  const { pathname } = useLocation();
 
-    const {isUploading, uploadFiles} = useDrive()
-    const {user, currentFolderId} = useApp()
-    const location = useLocation()
-    const fileInputRef = useRef(null)
-
-    const storage_used = Number(user?.storage_used ?? 0);
-    const storage_limit = Number(user?.storage_limit ?? 1073741824); // 1GB
-    const used_percentage = Math.min(100, Math.round((storage_used / storage_limit) * 100))
-
-    const handleFileSelect = (e)=>{
-         if (e.target.files && e.target.files.length > 0){
-            uploadFiles(e.target.files, currentFolderId);
-            e.target.value = "";
-         }
-    }
-
-    const navItems = [
-        {label: "My Drive", path: "/", icon: HardDriveIcon},
-        {label: "Shared Files", path: "/shared", icon: UsersIcon},
-        {label: "Trash", path: "/trash", icon: Trash2Icon},
-    ]
   return (
-    <>
-        {/* Mobile overlay backdrop */}
-        {isMobileOpen && (
-            <div className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-xs md:hidden" onClick={()=> setIsMobileOpen(false)}/>
-        )}
+    <aside className="glass sticky top-3 hidden h-[calc(100dvh-1.5rem)] w-[248px] shrink-0 flex-col rounded-[24px] p-3.5 shadow-soft lg:flex">
+      <Link to="/" className="mb-5 rounded-lg px-1.5 pt-1" aria-label="Filenest home">
+        <Logo size={30} />
+      </Link>
 
-        <aside className={`fixed top-0 left-0 bottom-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 md:translate-x-0 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <NewMenu />
 
-        {/* Brand Logo Header */}
-        <div className='flex items-center gap-3 px-6 py-5 border-b border-slate-200'>
-            <img src="/logo.svg" alt="Logo" className='size-11'/>
-            <div>
-                <h1 className="text-2xl font-medium uppercase text-slate-800">Filenest</h1>
-                <p className="text-xs text-slate-500 tracking-wider font-medium uppercase">Cloud Storage</p>
-            </div>
-        </div>
+      <nav className="mt-5 flex flex-col gap-0.5" aria-label="Main">
+        {NAV.map((item) => {
+          const active = isNavActive(item, pathname);
+          const count = item.count ? stats?.counts?.[item.count] : 0;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={active ? 'page' : undefined}
+              className={`flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
+                active ? 'bg-accent-soft text-accent-text' : 'text-fg-2 hover:bg-surface-2 hover:text-fg'
+              }`}
+            >
+              <item.icon size={18} />
+              <span className="flex-1">{item.label}</span>
+              {count > 0 && <span className={`text-xs tabular-nums ${active ? '' : 'text-fg-3'}`}>{count}</span>}
+            </Link>
+          );
+        })}
+      </nav>
 
-        {/* Upload CTA Dropdown */}
-        <div className='p-4'>
-            <input type="file" ref={fileInputRef} multiple className='hidden' onChange={handleFileSelect} />
-
-            <Dropdown
-            trigger={
-                <button type="button" disabled={isUploading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-lg transition-all disabled:opacity-50 cursor-pointer">
-                    <PlusIcon className='size-5'/>
-                    <span>New Item</span>
-                </button>
-            }
-            align='left'
-            className='w-32'>
-                <DropdownItem icon={HardDriveUploadIcon} onClick={()=> fileInputRef.current?.click()}>
-                    Upload Files
-                </DropdownItem>
-                <DropdownItem icon={FolderPlusIcon} onClick={onCreateFolderClick}>
-                    New Folder
-                </DropdownItem>
-            </Dropdown>
-        </div>
-
-        {/* Navigation Links */}
-        <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-            {navItems.map((item)=>{
-                 const Icon = item.icon;
-                 const isActive = item.path === "/" ? location.pathname === "/" || location.pathname.startsWith("/drive") : location.pathname === item.path;
-
-                 return (
-                    <Link key={item.path} to={item.path} onClick={()=> setIsMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium transition-all ${
-                        isActive 
-                        ? "border-r-3 border-orange-500 bg-linear-to-r from-orange-50 to-orange-100 text-orange-600"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    }`}>
-                        <Icon className={`size-4.5 ${isActive ? "text-orange-600" : "text-slate-500"}`}/>
-                        <span>{item.label}</span>
-                    </Link>
-                 )
-            })}
-        </nav>
-
-        {/* Storage Usage Widget */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <div className='flex items-center justify-between text-xs mb-2'>
-                <span className="text-slate-600 font-medium">Storage</span>
-                <span className="text-slate-900 font-semibold">{used_percentage}%</span>
-            </div>
-            <ProgressBar progress={used_percentage} color={used_percentage > 90 ? "bg-red-600" : used_percentage > 75 ? "bg-amber-500" : "bg-orange-600"}/>
-
-                <p className="text-[11px] text-slate-500 mt-2">
-                    {formatBytes(storage_used)} of {formatBytes(storage_limit)} used
-                </p>
-        </div>
-
-        </aside>
-    </>
-  )
-}
+      <div className="mt-auto rounded-2xl border border-line bg-surface p-3.5">
+        <StorageMeter used={Number(user?.storage_used || 0)} limit={Number(user?.storage_limit || 1)} categories={stats?.categories || []} />
+      </div>
+    </aside>
+  );
+};
 
 export default Sidebar

@@ -85,8 +85,11 @@ export const getFolders = async (req, res) => {
 export const getFolderDetails = async (req, res) => {
     try {
         const [folder] = await sql`
-        SELECT * FROM folders
-        WHERE id = ${req.params.id} AND owner_id = ${req.user.id} AND is_trashed = false`;
+        SELECT f.*, EXISTS (
+            SELECT 1 FROM share_links s WHERE s.resource_id = f.id AND (s.expires_at IS NULL OR s.expires_at > NOW())
+        ) AS is_shared
+        FROM folders f
+        WHERE f.id = ${req.params.id} AND f.owner_id = ${req.user.id} AND f.is_trashed = false`;
 
         if(!folder){
             return res.status(404).json({ error: "Folder not found." });

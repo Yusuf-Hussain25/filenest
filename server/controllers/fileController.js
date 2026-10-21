@@ -17,6 +17,12 @@ const SORT_MAP = {
 // File row without the internal storage key
 export const publicFile = ({ s3_key: _s3Key, ...file }) => file;
 
+// Same, plus a short-lived thumbnail URL for images (signing is local, no storage request)
+export const listedFile = async (file) => ({
+    ...publicFile(file),
+    thumb_url: file.mime_type?.startsWith("image/") ? await getSignedFileUrl(file.s3_key) : null,
+});
+
 // Multer reads multipart file names as latin1; turn them back into UTF-8 (e.g. "café.pdf")
 const decodeName = (name) => {
     const decoded = Buffer.from(name, "latin1").toString("utf8");
@@ -138,7 +144,7 @@ export const getFiles = async (req, res) => {
         const totalFiles = countRows[0].total;
 
         return res.status(200).json({
-            files: rows.map(publicFile),
+            files: await Promise.all(rows.map(listedFile)),
             pagination: {
                 page: pageNum,
                 limit: limitNum,

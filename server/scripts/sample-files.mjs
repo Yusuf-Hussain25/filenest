@@ -135,4 +135,5 @@ export const download = async (url) => {
     }
 };
 
-export const photo = (seed, w = 1600, h = 1067) => download(`https://picsum.photos/seed/filenest-${seed}/${w}/${h}.jpg`);
+// A specific picsum.photos image (ids picked so the photos fit the folders they're in)
+export const photo = (id, w = 1600, h = 1067) => download(`https://picsum.photos/id/${id}/${w}/${h}.jpg`);

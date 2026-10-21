@@ -1,8 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Auth from './pages/Auth'
 import Drive from './pages/Drive'
+import Recent from './pages/Recent'
+import Starred from './pages/Starred'
 import ProtectedRoute from './components/auth/ProtectedRoute'
-import DashboardLayout from './components/layout/DashboardLayout'
+import AppLayout from './components/layout/AppLayout'
 import SharedFile from './pages/SharedFile'
 import Trash from './pages/Trash'
 import SharedWithMe from './pages/SharedWithMe'
@@ -20,9 +22,11 @@ const App = () => {
 
         {/* Private Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
+          <Route element={<AppLayout />}>
             <Route path="/" element={<Drive />}/>
-            <Route path="/drive/:folderId" element={<Drive />}/>
+            <Route path="/folder/:folderId" element={<Drive />}/>
+            <Route path="/recent" element={<Recent />}/>
+            <Route path="/starred" element={<Starred />}/>
             <Route path="/shared" element={<SharedFile />}/>
             <Route path="/trash" element={<Trash />}/>
           </Route>

@@ -1,12 +1,14 @@
 // Fills Filenest with realistic demo data through the same API the app uses.
 //   npm run seed                         demo account + two other accounts
 //   npm run seed -- --with you@email.com also give your own account the demo drive
+//   npm run seed -- --reset              delete the demo accounts (and their files) first
 // Needs the API running (npm run server). Safe to re-run: existing folders, files,
 // stars and links are reused. Only timestamps (spread over the last 30 days) and link
 // view counts are set directly in the database, so the demo looks lived-in.
 import 'dotenv/config';
 import jwt from 'jsonwebtoken';
 import { sql } from '../config/db.js';
+import { deleteMultipleFromStorage } from '../utils/s3Helper.js';
 import { download, makePdf, makeWav, makeZip, photo } from './sample-files.mjs';
 
 const API = process.env.API_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -16,6 +18,7 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
 const SEED_PASSWORD = process.env.SEED_PASSWORD;
 const withIndex = process.argv.indexOf('--with');
 const WITH_EMAIL = withIndex > -1 ? process.argv[withIndex + 1]?.toLowerCase().trim() : null;
+const RESET = process.argv.includes('--reset');
 
 if (!DEMO_EMAIL || !DEMO_PASSWORD || !SEED_PASSWORD) {
     console.error('Set DEMO_EMAIL, DEMO_PASSWORD and SEED_PASSWORD in server/.env first (see server/.env.example).');
@@ -247,7 +250,7 @@ const demoDrive = [
     { file: 'Getting started with Filenest.pdf', mime: 'application/pdf', make: files.gettingStarted, days: 30 },
     { file: 'monthly-budget-2026.csv', mime: 'text/csv', make: files.budget, days: 3, openedH: 2 },
     { file: 'meeting-notes.txt', mime: 'text/plain', make: files.meetingNotes, days: 1, openedH: 5 },
-    { file: 'IMG_20261019_183012.jpg', mime: 'image/jpeg', make: () => photo('latest', 1600, 1200), days: 0.2 },
+    { file: 'IMG_20261019_183012.jpg', mime: 'image/jpeg', make: () => photo(63, 1600, 1200), days: 0.2 },
     {
         folder: 'Work', days: 28, children: [
             {
@@ -259,9 +262,9 @@ const demoDrive = [
             },
             {
                 folder: 'Design', days: 20, children: [
-                    { file: 'moodboard-01.jpg', mime: 'image/jpeg', make: () => photo('mood-1'), days: 13 },
-                    { file: 'moodboard-02.jpg', mime: 'image/jpeg', make: () => photo('mood-2'), days: 13 },
-                    { file: 'moodboard-03.jpg', mime: 'image/jpeg', make: () => photo('mood-3'), days: 12 },
+                    { file: 'moodboard-01.jpg', mime: 'image/jpeg', make: () => photo(20), days: 13 },
+                    { file: 'moodboard-02.jpg', mime: 'image/jpeg', make: () => photo(36), days: 13 },
+                    { file: 'moodboard-03.jpg', mime: 'image/jpeg', make: () => photo(26), days: 12 },
                     { file: 'brand-tokens.json', mime: 'application/json', make: files.tokens, days: 11 },
                     { file: 'brand-assets.zip', mime: 'application/zip', make: () => makeZip([{ name: 'brand-tokens.json', data: files.tokens() }, { name: 'README.txt', data: 'Northwind brand assets, v2.' }]), days: 11 },
                 ],
@@ -279,19 +282,19 @@ const demoDrive = [
         folder: 'Photos', days: 27, star: true, children: [
             {
                 folder: 'Goa 2026', days: 6, star: true, share: { permission: 'view', expiresInDays: 7, views: 14 }, children: [
-                    { file: 'IMG_20261012_064211.jpg', mime: 'image/jpeg', make: () => photo('goa-1'), days: 6, openedH: 4 },
-                    { file: 'IMG_20261012_071530.jpg', mime: 'image/jpeg', make: () => photo('goa-2'), days: 6 },
-                    { file: 'IMG_20261013_174802.jpg', mime: 'image/jpeg', make: () => photo('goa-3'), days: 6 },
-                    { file: 'IMG_20261013_181455.jpg', mime: 'image/jpeg', make: () => photo('goa-4'), days: 5 },
-                    { file: 'IMG_20261014_102937.jpg', mime: 'image/jpeg', make: () => photo('goa-5'), days: 5 },
-                    { file: 'IMG_20261014_190244.jpg', mime: 'image/jpeg', make: () => photo('goa-6'), days: 5 },
+                    { file: 'IMG_20261012_064211.jpg', mime: 'image/jpeg', make: () => photo(108), days: 6, openedH: 4 },
+                    { file: 'IMG_20261012_071530.jpg', mime: 'image/jpeg', make: () => photo(100), days: 6 },
+                    { file: 'IMG_20261013_174802.jpg', mime: 'image/jpeg', make: () => photo(154), days: 6 },
+                    { file: 'IMG_20261013_181455.jpg', mime: 'image/jpeg', make: () => photo(174), days: 5 },
+                    { file: 'IMG_20261014_102937.jpg', mime: 'image/jpeg', make: () => photo(199), days: 5 },
+                    { file: 'IMG_20261014_190244.jpg', mime: 'image/jpeg', make: () => photo(77), days: 5 },
                 ],
             },
             {
                 folder: 'Family', days: 26, children: [
-                    { file: 'diwali-2025.jpg', mime: 'image/jpeg', make: () => photo('family-1'), days: 26 },
-                    { file: 'nani-birthday.jpg', mime: 'image/jpeg', make: () => photo('family-2'), days: 16 },
-                    { file: 'sunday-lunch.jpg', mime: 'image/jpeg', make: () => photo('family-3'), days: 8 },
+                    { file: 'diwali-2025.jpg', mime: 'image/jpeg', make: () => photo(129), days: 26 },
+                    { file: 'nani-birthday.jpg', mime: 'image/jpeg', make: () => photo(64), days: 16 },
+                    { file: 'sunday-lunch.jpg', mime: 'image/jpeg', make: () => photo(65), days: 8 },
                 ],
             },
         ],
@@ -329,7 +332,7 @@ const demoDrive = [
 // Created, then moved to the Trash (trashedDays ago)
 const demoTrash = [
     { file: 'old-resume-2024.pdf', mime: 'application/pdf', make: files.oldResume, days: 40, trashedDays: 3 },
-    { file: 'screenshot_2026-09-12.jpg', mime: 'image/jpeg', make: () => photo('screenshot', 1280, 800), days: 39, trashedDays: 6 },
+    { file: 'screenshot_2026-09-12.jpg', mime: 'image/jpeg', make: () => photo(0, 1280, 800), days: 39, trashedDays: 6 },
     {
         folder: 'Drafts', days: 35, trashedDays: 1, children: [
             { file: 'blog-draft-v1.md', mime: 'text/markdown', make: () => text('# Why we built expiring links\n\nDraft, do not share.\n'), days: 35 },
@@ -465,7 +468,7 @@ const others = [
             {
                 folder: 'Freelance', days: 12, children: [
                     { file: 'proposal-acme.pdf', mime: 'application/pdf', make: () => makePdf({ title: 'Proposal for Acme', subtitle: 'Arjun Mehta · Backend consulting', lines: ['Scope: API audit and performance plan', 'Timeline: 3 weeks', 'Fee: INR 2,40,000'] }), days: 12, share: { permission: 'download', views: 5 } },
-                    { file: 'architecture.jpg', mime: 'image/jpeg', make: () => photo('arjun-1'), days: 9 },
+                    { file: 'architecture.jpg', mime: 'image/jpeg', make: () => photo(134), days: 9 },
                 ],
             },
         ],
@@ -487,6 +490,14 @@ const main = async () => {
     await fetch(API).catch(() => {
         throw new Error(`The API isn't running at ${API}. Start it with: npm run server`);
     });
+
+    if (RESET) {
+        const pattern = '%@filenest-demo.dev';
+        const keys = await sql`SELECT f.s3_key FROM files f JOIN users u ON u.id = f.owner_id WHERE u.email LIKE ${pattern} OR u.email = ${DEMO_EMAIL}`;
+        await deleteMultipleFromStorage(keys.map((k) => k.s3_key));
+        const gone = await sql`DELETE FROM users WHERE email LIKE ${pattern} OR email = ${DEMO_EMAIL} RETURNING id`;
+        console.log(`Reset: removed ${gone.length} demo accounts and ${keys.length} files\n`);
+    }
 
     if (WITH_EMAIL) {
         console.log(`Adding the demo drive to ${WITH_EMAIL}`);
