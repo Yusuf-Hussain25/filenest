@@ -16,8 +16,8 @@ Your files, safely nested. Filenest is a full-stack cloud drive: upload files, o
 ### Prerequisites
 
 - Node.js 20+
-- A [Neon](https://console.neon.tech) Postgres database
-- An S3-compatible bucket and access keys
+- Either **Docker** (runs Postgres and an S3-compatible server locally, no accounts needed)
+- Or a [Neon](https://console.neon.tech) Postgres database plus an S3-compatible bucket (Cloudflare R2, AWS S3)
 
 ### Install
 
@@ -45,10 +45,13 @@ Fill in `server/.env`. Every key is explained in the file:
 
 `client/.env` only needs `VITE_BASE_URL`, the URL of the API.
 
+The defaults in `server/.env.example` already point at the local Docker services, so for local development you only need to set `JWT_SECRET`.
+
 ### Run
 
 ```bash
-npm run dev   # API on http://localhost:3000, web app on http://localhost:5173
+npm run services   # Docker: Postgres on :5435 + S3 (RustFS) on :9000, creates the bucket
+npm run dev        # API on http://localhost:3000, web app on http://localhost:5173
 ```
 
 The API creates its tables on first start.

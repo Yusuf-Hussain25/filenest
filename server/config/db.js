@@ -1,6 +1,64 @@
 import { neon } from '@neondatabase/serverless';
+import pg from 'pg';
 
-export const sql = neon(process.env.DATABASE_URL);
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL || !/^postgres(ql)?:\/\//.test(DATABASE_URL)) {
+    console.error('DATABASE_URL is missing or invalid. Set a Neon or Postgres connection string in server/.env');
+    process.exit(1);
+}
+
+// Neon's HTTP driver only talks to Neon. For any other Postgres (e.g. the local one from
+// docker-compose.dev.yml) use node-postgres behind the same sql`` / sql.unsafe / sql.transaction API.
+const createPgSql = (connectionString) => {
+    const pool = new pg.Pool({ connectionString });
+
+    const compile = (strings, values) => {
+        let text = '';
+        const params = [];
+        strings.forEach((str, i) => {
+            text += str;
+            if (i >= values.length) return;
+            const value = values[i];
+            if (value?.__unsafe !== undefined) text += value.__unsafe;
+            else {
+                params.push(value);
+                text += `$${params.length}`;
+            }
+        });
+        return { text, params };
+    };
+
+    const sql = (strings, ...values) => {
+        const query = compile(strings, values);
+        return {
+            query,
+            then: (resolve, reject) => pool.query(query.text, query.params).then((r) => r.rows).then(resolve, reject),
+        };
+    };
+
+    sql.unsafe = (raw) => ({ __unsafe: raw });
+
+    sql.transaction = async (queries) => {
+        const conn = await pool.connect();
+        try {
+            await conn.query('BEGIN');
+            const results = [];
+            for (const { query } of queries) results.push((await conn.query(query.text, query.params)).rows);
+            await conn.query('COMMIT');
+            return results;
+        } catch (err) {
+            await conn.query('ROLLBACK');
+            throw err;
+        } finally {
+            conn.release();
+        }
+    };
+
+    return sql;
+};
+
+export const sql = DATABASE_URL.includes('neon.tech') ? neon(DATABASE_URL) : createPgSql(DATABASE_URL);
 
 export async function initDB() {
     try {

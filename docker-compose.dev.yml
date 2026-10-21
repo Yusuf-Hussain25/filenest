@@ -1,0 +1,40 @@
+# Local stand-ins for Neon and S3, so Filenest runs with no cloud accounts.
+#   npm run services   (starts both, then creates the bucket)
+#
+# postgres: plain Postgres on :5435. server/config/db.js talks to it with node-postgres
+#           (any DATABASE_URL that isn't a Neon URL).
+# s3:       RustFS, an S3-compatible server, on :9000 with a web console on :9001
+#           (login minioadmin / minioadmin).
+name: filenest
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: filenest
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 20
+
+  s3:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - s3data:/data
+
+volumes:
+  pgdata:
+  s3data:
