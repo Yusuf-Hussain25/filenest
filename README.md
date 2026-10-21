@@ -4,9 +4,18 @@
 
 ![Filenest: My Files in light mode](docs/screenshots/drive.png)
 
+## What's new in 2.1
+
+| Feature | What it does |
+|---|---|
+| **Uploads straight to storage** | The browser uploads to the bucket with a presigned URL; the API only signs and verifies. No more 100 MB cap (1 GB per file by default), faster big files, and storage itself refuses a file bigger than announced |
+| **Folder upload** | Drop folders (or New → Upload folder) and the whole tree is recreated, then every file lands in its own subfolder |
+| **Download as ZIP** | Any folder, any selection, or a shared folder (when the link allows downloads), streamed straight from storage |
+| **Select many** | Checkboxes, Shift-click ranges, Ctrl/⌘+A, then download, move, star or trash everything at once (with Undo) |
+
 ## What's new in 2.0
 
-Filenest 2.0 is a full redesign and hardening of a basic course project ("Drivea").
+Filenest 2.0 was a full redesign and hardening of a basic course project ("Drivea").
 
 | Area | 1.0 | 2.0 |
 |---|---|---|
@@ -24,12 +33,13 @@ Filenest 2.0 is a full redesign and hardening of a basic course project ("Drivea
 
 - **Accounts**: sign up and log in with an httpOnly cookie session, password show/hide, one-click demo account
 - **My Files**: nested folders with item counts and sizes, file cards with image thumbnails, grid or list view, six sort orders, breadcrumbs
-- **Uploads**: drag and drop anywhere, upload panel with per-file progress, cancel and retry, storage quota per account (1 GB by default)
-- **Actions** from the ⋯ menu, a right-click or the viewer: preview, download, share, star, rename, move (folder tree picker), new folder inside, move to Trash with Undo
+- **Uploads**: drag and drop files or whole folders anywhere, straight to storage with presigned URLs, upload panel with per-file progress, cancel and retry, storage quota per account (1 GB by default)
+- **Actions** from the ⋯ menu, a right-click or the viewer: preview, download (folders as ZIP), share, star, rename, move (folder tree picker), new folder inside, move to Trash with Undo
+- **Multi-select**: checkboxes, Shift-click ranges, Ctrl/⌘+A and Esc; download as one ZIP, move, star or trash the whole selection with Undo
 - **Search**: ⌘K / Ctrl+K or `/` opens a palette that searches every file and folder name, with quick actions when empty
 - **Recent and Starred**: recent activity grouped by day, starred items with their location
 - **Preview**: images (fit or actual size), video, audio, PDF, plain text with line numbers, CSV as a table, pretty JSON, rendered Markdown with a source view
-- **Public links**: anyone with the link can open a file or browse a shared folder without an account; downloads only when allowed; expired and revoked links get a friendly page
+- **Public links**: anyone with the link can open a file or browse a shared folder without an account; downloads (shared folders as one ZIP) only when allowed; expired and revoked links get a friendly page
 - **Shared links page**: every link with its permission, expiry state and open count; copy, open, change settings, revoke
 - **Trash**: restore, delete forever, empty the Trash, with confirmations
 - **Settings**: display name, password, theme, storage by category, uploads over the last 14 days
@@ -49,10 +59,13 @@ Filenest 2.0 is a full redesign and hardening of a basic course project ("Drivea
 | ⌘K search | Every public link in one place |
 | ![Settings](docs/screenshots/settings.png) | ![Public link](docs/screenshots/public-link.png) |
 | Storage insights | What someone with the link sees |
+| ![Multi-select](docs/screenshots/multi-select.png) | ![Folder upload](docs/screenshots/folder-upload.png) |
+| 2.1: select many, act once | 2.1: a whole folder uploaded with its tree |
 
 <p>
   <img src="docs/screenshots/drive-mobile.png" alt="My Files on a phone" width="260" />
   <img src="docs/screenshots/preview-mobile.png" alt="Preview on a phone" width="260" />
+  <img src="docs/screenshots/multi-mobile.png" alt="Selecting files on a phone" width="260" />
 </p>
 
 ## Tech stack
@@ -78,12 +91,12 @@ filenest/
 │   │   │   ├── drive/           # cards and rows, upload panel, drop overlay, move / share / name dialogs
 │   │   │   ├── preview/         # FileViewer, PreviewBody (image, video, audio, PDF, text, CSV, Markdown), FilePreview
 │   │   │   └── auth/            # route guard, animated product preview
-│   │   ├── context/             # Auth, Uploads, Actions (every item action + dialogs), Workspace
+│   │   ├── context/             # Auth, Uploads (direct to storage, folder trees), Actions (single and bulk actions + dialogs), Workspace
 │   │   ├── hooks/ lib/          # data loading, theme, formatting, file kinds, share helpers
 │   │   └── index.css            # design tokens and primitives
 │   └── vercel.json              # SPA rewrites
 ├── server/                      # Express API
-│   ├── controllers/             # auth, files, folders, drive (recent, starred, search, stats), shares, trash
+│   ├── controllers/             # auth, files, uploads, folders, drive (recent, starred, search, stats), bulk, zip, shares, trash
 │   ├── routes/ middleware/      # auth guard, uploads, rate limits
 │   ├── services/ utils/         # folder hierarchy, storage helpers, request helpers
 │   ├── config/                  # Postgres / Neon connection and schema, S3 client
@@ -122,10 +135,11 @@ cp client/.env.example client/.env
 | `server/.env` | `DATABASE_URL` | Local default works with `npm run services`; for Neon: your project → **Connect** → connection string |
 | `server/.env` | `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET` | Local defaults work; for R2: **R2 → Manage API tokens → Create API token** (Object Read & Write) |
 | `server/.env` | `ORIGINS` | Browser origins allowed to call the API (`http://localhost:5173`) |
-| `server/.env` | `MAX_FILE_SIZE`, `MAX_STORAGE_PER_USER` | Optional limits in bytes (100 MB per file, 1 GB per account) |
+| `server/.env` | `MAX_FILE_SIZE`, `MAX_STORAGE_PER_USER`, `ZIP_MAX_BYTES` | Optional limits in bytes (1 GB per file, 1 GB per account, 2 GB per ZIP download) |
 | `server/.env` | `DEMO_EMAIL`, `DEMO_PASSWORD`, `SEED_PASSWORD` | Your choice; used by `npm run seed` and the demo button |
 | `client/.env` | `VITE_BASE_URL` | URL of the API (`http://localhost:3000`) |
 | `client/.env` | `VITE_DEMO_EMAIL` | Optional. Shows "Explore with a demo account" |
+| `client/.env` | `VITE_UPLOAD_MODE` | Optional. `direct` (default) or `server` (see below) |
 
 If `VITE_BASE_URL` is missing, the app shows a setup screen naming the key instead of a blank page.
 
@@ -141,7 +155,7 @@ The API creates and upgrades its tables on start (additive `ADD COLUMN IF NOT EX
 
 ### 4. Security checks
 
-With the API running, `npm run test:security` creates two throwaway accounts and runs 74 checks: logged-out visitors are refused, users can only reach their own files, folders, links, stars, stats and trash, malformed input gets clean errors, public links expose only what they should (no owner email, ids or storage keys; view-only links have no download URL; shared folders can't be used to reach files outside them), and storage quotas hold. Everything it creates is deleted at the end.
+With the API running, `npm run test:security` creates two throwaway accounts and runs 96 checks: logged-out visitors are refused, users can only reach their own files, folders, links, stars, stats, trash, uploads, ZIPs and bulk actions, malformed input gets clean errors, public links expose only what they should (no owner email, ids or storage keys; view-only links have no download URL; shared folders can't be used to reach files outside them), and storage quotas hold. Everything it creates is deleted at the end.
 
 ## Configurable providers
 
@@ -149,6 +163,7 @@ With the API running, `npm run test:security` creates two throwaway accounts and
 |---|---|---|
 | Database | Plain Postgres in Docker, used through node-postgres | Neon: any `DATABASE_URL` containing `neon.tech` uses Neon's serverless driver |
 | File storage | RustFS (S3-compatible) in Docker | Cloudflare R2, AWS S3 or any S3-compatible service: just change the `AWS_*` values |
+| Uploads (`VITE_UPLOAD_MODE`) | `direct`: presigned PUT straight to the bucket (needs bucket CORS, set by `npm run bucket`) | `server`: through the API (max 100 MB per file, no CORS needed). If the bucket can't be reached, the app falls back to `server` for the session |
 
 Both are switched by `.env` alone. `config/db.js` gives node-postgres the same tagged-template `sql`, `sql.unsafe` and `sql.transaction` API as Neon, so no query code changes. Files are served through short-lived presigned URLs, so the bucket stays private and needs no CORS setup.
 
@@ -170,10 +185,11 @@ Set `VITE_DEMO_EMAIL` in `client/.env` to show "Explore with a demo account". Th
 
 **Database and storage:** create a Neon database and an R2 bucket (or S3), and put their values in the API's environment.
 
-**API (Render, free web service):** uploads go up to 100 MB, beyond the 4.5 MB request limit of serverless functions, so the API runs as a normal Node service.
+**API (Render, free web service):** ZIP downloads stream for as long as they take, and uploads through the API can reach 100 MB, which doesn't fit serverless limits, so the API runs as a normal Node service.
 1. Render → **New → Web Service** → connect the GitHub repo
 2. Root directory `server`, build command `npm install`, start command `npm start`
 3. Environment: everything from `server/.env`, plus `NODE_ENV=production` (secure, cross-site cookies) and `ORIGINS=https://<your-app>.vercel.app`
+4. Run `npm run bucket` once (locally, with the production `AWS_*` and `ORIGINS` values) so the bucket allows direct uploads from your app
 
 **Client (Vercel):**
 1. Vercel → **Add New → Project** → import the repo, root directory `client` (Vite is detected)
