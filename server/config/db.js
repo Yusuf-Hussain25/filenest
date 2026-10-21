@@ -142,6 +142,21 @@ export async function initDB() {
             sql`ALTER TABLE files   ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMPTZ DEFAULT NULL`,
             sql`CREATE INDEX IF NOT EXISTS idx_files_owner_starred   ON files (owner_id) WHERE is_starred AND NOT is_trashed`,
             sql`CREATE INDEX IF NOT EXISTS idx_folders_owner_starred ON folders (owner_id) WHERE is_starred AND NOT is_trashed`,
+            // 2.1: direct-to-storage uploads waiting for the browser to finish the PUT
+            sql`
+                CREATE TABLE IF NOT EXISTS pending_uploads (
+                    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    folder_id   UUID REFERENCES folders(id) ON DELETE SET NULL,
+                    name        VARCHAR(255) NOT NULL,
+                    mime_type   VARCHAR(128) NOT NULL,
+                    size        BIGINT NOT NULL,
+                    s3_key      VARCHAR(512) UNIQUE NOT NULL,
+                    expires_at  TIMESTAMPTZ NOT NULL,
+                    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            `,
+            sql`CREATE INDEX IF NOT EXISTS idx_pending_owner ON pending_uploads (owner_id, expires_at)`,
         ]
         )
 

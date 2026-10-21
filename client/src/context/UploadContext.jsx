@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import api, { errorMessage } from "../config/api";
+import { errorMessage } from "../config/api";
+import { uploadFile } from "../lib/upload";
 import { emitDriveChange } from "../lib/events";
 import { useAuth } from "./AuthContext";
 
@@ -7,7 +8,8 @@ const UploadContext = createContext(null);
 const CONCURRENCY = 3;
 let nextId = 1;
 
-// Upload queue: each file is its own request with real progress, three at a time.
+// Upload queue: each file uploads on its own (straight to storage by default, see lib/upload.js)
+// with real progress, three at a time.
 // The panel in the corner reads this; views refresh as files land.
 export const UploadProvider = ({ children }) => {
     const { updateUser } = useAuth();
@@ -44,17 +46,12 @@ export const UploadProvider = ({ children }) => {
         starting.forEach((u) => {
             const controller = new AbortController();
             controllers.current.set(u.id, controller);
-            const form = new FormData();
-            form.append("files", files.current.get(u.id), u.name);
-            if (u.folderId) form.append("folder_id", u.folderId);
 
-            api.post("/api/files/upload", form, {
+            uploadFile(files.current.get(u.id), u.folderId, {
                 signal: controller.signal,
-                onUploadProgress: (e) => {
-                    if (e.total) patch(u.id, { progress: Math.min(99, Math.round((e.loaded / e.total) * 100)) });
-                },
+                onProgress: (fraction) => patch(u.id, { progress: Math.min(99, Math.round(fraction * 100)) }),
             })
-                .then(({ data }) => {
+                .then((data) => {
                     patch(u.id, { status: "done", progress: 100 });
                     if (data.storage_used !== undefined) updateUser({ storage_used: data.storage_used });
                     files.current.delete(u.id);

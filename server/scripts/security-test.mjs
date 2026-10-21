@@ -130,11 +130,26 @@ const main = async () => {
     check('% in search is literal text', ((await a.call('GET', '/api/files?search=%25')).data.files || []).length === 0);
     check('move a folder into its own subfolder → 400', (await a.call('PATCH', `/api/folders/${folder.id}/move`, { target_parent: sub.id })).status === 400);
 
+    console.log('\nDirect uploads');
+    const ticket = (await a.call('POST', '/api/files/uploads', { name: 'direct.txt', size: 6, type: 'text/plain', folder_id: other.id })).data;
+    check('owner gets a presigned upload URL', Boolean(ticket.url && ticket.upload_id));
+    check('upload URL into her folder for others → 404', (await b.call('POST', '/api/files/uploads', { name: 'x.txt', size: 1, type: 'text/plain', folder_id: folder.id })).status === 404);
+    check('others can\'t complete her upload → 404', (await b.call('POST', `/api/files/uploads/${ticket.upload_id}/complete`)).status === 404);
+    check('others can\'t cancel her upload → 404', (await b.call('DELETE', `/api/files/uploads/${ticket.upload_id}`)).status === 404);
+    check('logged out → 401', (await anon.call('POST', '/api/files/uploads', { name: 'x.txt', size: 1, type: 'text/plain' })).status === 401);
+    const oversize = await fetch(ticket.url, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: 'more than six bytes' });
+    check('storage refuses a bigger file than announced', !oversize.ok);
+    await fetch(ticket.url, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: 'sixsix' });
+    const finished = await a.call('POST', `/api/files/uploads/${ticket.upload_id}/complete`);
+    check('owner completes the upload into her folder', finished.status === 201 && finished.data.file.folder_id === other.id);
+    check('a completed upload can\'t be completed twice', (await a.call('POST', `/api/files/uploads/${ticket.upload_id}/complete`)).status === 404);
+
     console.log('\nStorage quota');
     await sql`UPDATE users SET storage_limit = storage_used + 5 WHERE email = ${emailB}`;
     const before = (await b.call('GET', '/api/auth/me')).data.user.storage_used;
     check('upload over the quota → 400', (await upload(b, 'big.txt', 'more than five bytes')).status === 400);
     check('rejected upload does not use space', (await b.call('GET', '/api/auth/me')).data.user.storage_used === before);
+    check('direct upload over the quota → 400', (await b.call('POST', '/api/files/uploads', { name: 'big.bin', size: 1000, type: 'application/octet-stream' })).status === 400);
 
     console.log('\nPublic links');
     const folderLink = (await a.call('POST', '/api/shares', { resource_type: 'folder', resource_id: folder.id, permission: 'view' })).data.share_link;

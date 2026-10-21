@@ -3,12 +3,16 @@ import rateLimit from "express-rate-limit";
 
 const storage = multer.memoryStorage();
 
-const maxFileSize = process.env.MAX_FILE_SIZE ? Number(process.env.MAX_FILE_SIZE) : 104857600 // 100 MB default
+// Largest file anyone may upload (direct uploads go straight to storage)
+export const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE || 1073741824); // 1 GB default
+
+// Uploads through the API are held in memory, so they stay capped at 100 MB
+export const SERVER_UPLOAD_LIMIT = Math.min(MAX_FILE_SIZE, 104857600);
 
 export const upload = multer({
     storage,
     limits: {
-        fileSize: maxFileSize,
+        fileSize: SERVER_UPLOAD_LIMIT,
         files: 10,
     }
 })

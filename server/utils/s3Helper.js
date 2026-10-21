@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectVersionsCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, ListObjectVersionsCommand, PutObjectCommand } from "@aws-sdk/client-s3"
 import { BUCKET_NAME, client } from "../config/s3.js"
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner"
 
@@ -14,6 +14,24 @@ export const uploadToStorage = async (fileBuffer, key, mimeType) => {
     await client.send(command)
     return {s3Key: key};
 }
+
+// Presigned PUT for a browser upload. Type and exact size are part of the signature, so the
+// browser can't send a different or bigger file than it asked for.
+export const getUploadUrl = async (key, mimeType, size, expiresIn = 3600) => {
+    const command = new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, ContentType: mimeType, ContentLength: size });
+    return await getSignedUrl(client, command, { expiresIn, signableHeaders: new Set(["content-type", "content-length"]) });
+};
+
+// Size of a stored object in bytes, or null when it doesn't exist
+export const getObjectSize = async (key) => {
+    try {
+        const { ContentLength } = await client.send(new HeadObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+        return Number(ContentLength);
+    } catch (err) {
+        if (err.$metadata?.httpStatusCode === 404 || err.name === "NotFound") return null;
+        throw err;
+    }
+};
 
 // First `limit` bytes of an object as UTF-8 text
 export const readTextFromStorage = async (key, limit) => {

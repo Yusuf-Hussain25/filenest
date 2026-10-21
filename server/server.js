@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import multer from "multer";
+import { SERVER_UPLOAD_LIMIT } from "./middleware/upload.js";
 import { initDB } from "./config/db.js";
 import authRouter from "./routes/authRoutes.js";
 import folderRouter from "./routes/folderRoutes.js";
@@ -47,7 +48,7 @@ app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }))
 // Error handling: readable messages for upload limits, nothing internal for the rest
 app.use((err, _req, res, _next)=>{
     if (err instanceof multer.MulterError) {
-        const maxMb = Math.round(Number(process.env.MAX_FILE_SIZE || 104857600) / 1048576);
+        const maxMb = Math.round(SERVER_UPLOAD_LIMIT / 1048576);
         const message = err.code === "LIMIT_FILE_SIZE"
             ? `Each file can be at most ${maxMb} MB.`
             : err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE"
