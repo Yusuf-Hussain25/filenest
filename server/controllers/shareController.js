@@ -225,6 +225,39 @@ export const accessShareLink = async (req, res) => {
     }
 }
 
+// Change who can download and when a link expires
+// PATCH /api/shares/:id   { permission?, expires_at? (null = never) }
+export const updateShareLink = async (req, res) => {
+    try {
+        const [link] = await sql`SELECT * FROM share_links WHERE id = ${req.params.id} AND owner_id = ${req.user.id}`;
+        if (!link) {
+            return res.status(404).json({ error: "Share link not found." });
+        }
+
+        const permission = req.body?.permission ?? link.permission;
+        if (!PERMISSIONS.includes(permission)) {
+            return res.status(400).json({ error: "Permission must be view or download." });
+        }
+
+        let expiresAt = link.expires_at;
+        if (req.body && "expires_at" in req.body) {
+            const parsed = parseExpiry(req.body.expires_at);
+            if (parsed.error) {
+                return res.status(400).json({ error: parsed.error });
+            }
+            expiresAt = parsed.expiresAt;
+        }
+
+        const [updated] = await sql`
+        UPDATE share_links SET permission = ${permission}, expires_at = ${expiresAt}, updated_at = NOW()
+        WHERE id = ${link.id} AND owner_id = ${req.user.id}
+        RETURNING *`;
+        return res.status(200).json({ share_link: updated });
+    } catch (error) {
+        return serverError(res, error);
+    }
+}
+
 // Revoke/delete share link
 // DELETE /api/shares/:id
 export const deleteShareLink = async (req, res) => {

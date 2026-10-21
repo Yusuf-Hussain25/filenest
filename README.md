@@ -62,4 +62,4 @@ The API creates its tables on first start.
 
 ## Security checks
 
-With the API running, `npm run test:security` creates two throwaway accounts and runs 59 checks: logged-out visitors are refused, users can only reach their own files, folders, links and trash, public links expose only what they should, and storage quotas hold. It deletes everything it created when it finishes.
+With the API running, `npm run test:security` creates two throwaway accounts and runs 68 checks: logged-out visitors are refused, users can only reach their own files, folders, links and trash, public links expose only what they should, and storage quotas hold. It deletes everything it created when it finishes.

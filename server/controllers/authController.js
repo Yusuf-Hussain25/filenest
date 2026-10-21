@@ -110,5 +110,70 @@ export const logoutUser = async (_req, res) => {
 // GET /api/auth/me
 export const getMe = async (req, res) => {
     // req.user is already loaded by protect middleware
-    return res.status(200).json({user: req.user})
+    return res.status(200).json({user: {...req.user, is_demo: isDemoUser(req.user)}})
+}
+
+const isDemoUser = (user) => Boolean(process.env.DEMO_EMAIL) && user.email === process.env.DEMO_EMAIL.toLowerCase().trim();
+
+// One-click sign-in to the seeded demo account (only when DEMO_EMAIL is set)
+// POST /api/auth/demo
+export const demoLogin = async (_req, res) => {
+    try {
+        const demoEmail = process.env.DEMO_EMAIL?.toLowerCase().trim();
+        if (!demoEmail) {
+            return res.status(404).json({error: "The demo account is not enabled."})
+        }
+        const [user] = await sql`SELECT id, name, email, storage_used, storage_limit, created_at, updated_at FROM users WHERE email = ${demoEmail}`;
+        if (!user) {
+            return res.status(503).json({error: "The demo account isn't set up yet. Run `npm run seed` first."})
+        }
+        return sendTokenResponse(res, user.id, 200, {user: {...user, is_demo: true}});
+    } catch (error) {
+        return serverError(res, error)
+    }
+}
+
+// Update display name
+// PATCH /api/auth/me
+export const updateProfile = async (req, res) => {
+    try {
+        if (isDemoUser(req.user)) {
+            return res.status(403).json({error: "The demo account's profile can't be changed. Create your own account to try this."})
+        }
+        const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+        if (!name || name.length > 80) {
+            return res.status(400).json({error: "Name must be 1 to 80 characters."})
+        }
+        const [user] = await sql`UPDATE users SET name = ${name}, updated_at = NOW() WHERE id = ${req.user.id}
+        RETURNING id, name, email, storage_used, storage_limit, created_at, updated_at`;
+        return res.status(200).json({user});
+    } catch (error) {
+        return serverError(res, error)
+    }
+}
+
+// Change password (needs the current one)
+// PATCH /api/auth/password
+export const changePassword = async (req, res) => {
+    try {
+        if (isDemoUser(req.user)) {
+            return res.status(403).json({error: "The demo account's password can't be changed."})
+        }
+        const { current_password: current, new_password: next } = req.body ?? {};
+        if (typeof current !== "string" || typeof next !== "string" || !current) {
+            return res.status(400).json({error: "Enter your current and new password."})
+        }
+        if (next.length < 8 || next.length > 128) {
+            return res.status(400).json({error: "New password must be 8 to 128 characters."})
+        }
+        const [row] = await sql`SELECT password FROM users WHERE id = ${req.user.id}`;
+        if (!(await bcrypt.compare(current, row.password))) {
+            return res.status(400).json({error: "Your current password is incorrect."})
+        }
+        const hashed = await bcrypt.hash(next, 10);
+        await sql`UPDATE users SET password = ${hashed}, updated_at = NOW() WHERE id = ${req.user.id}`;
+        return res.status(200).json({message: "Password updated."});
+    } catch (error) {
+        return serverError(res, error)
+    }
 }

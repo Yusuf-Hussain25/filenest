@@ -118,7 +118,10 @@ export const getFiles = async (req, res) => {
 
         const [rows, countRows] = await Promise.all([
             sql`
-            SELECT * FROM files
+            SELECT f.*, EXISTS (
+                SELECT 1 FROM share_links s WHERE s.resource_id = f.id AND (s.expires_at IS NULL OR s.expires_at > NOW())
+            ) AS is_shared
+            FROM files f
             WHERE owner_id = ${req.user.id} AND is_trashed = false
             AND (${isSearch}::boolean = true AND name ILIKE ${pattern} OR ${isSearch}::boolean = false AND folder_id IS NOT DISTINCT FROM ${targetFolderId})
             ORDER BY ${sql.unsafe(orderBy)}
@@ -162,6 +165,8 @@ export const getFilePreviewUrl = async (req, res) => {
         }
         const download = req.query.download === "1" || req.query.download === "true";
         const url = await getSignedFileUrl(file.s3_key, { download, filename: file.name })
+        // Feeds "Recent"
+        await sql`UPDATE files SET last_opened_at = NOW() WHERE id = ${file.id}`;
         return res.status(200).json({ url, file: publicFile(file) });
 
     } catch (error) {

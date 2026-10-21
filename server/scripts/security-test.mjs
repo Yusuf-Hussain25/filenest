@@ -64,6 +64,7 @@ const main = async () => {
     check('auth cookie is httpOnly', /httponly/i.test(regA.headers.get('set-cookie') || ''));
     await b.call('POST', '/api/auth/register', { name: 'Bob Test', email: emailB, password: 'correct-horse-2' });
     check('short password is rejected', (await anon.call('POST', '/api/auth/register', { name: 'X', email: `x-${run}@filenest-test.dev`, password: '123' })).status === 400);
+    check('password change needs the current password', (await a.call('PATCH', '/api/auth/password', { current_password: 'nope-nope-nope', new_password: 'another-pass-9' })).status === 400);
     const wrongPw = await anon.call('POST', '/api/auth/login', { email: emailA, password: 'wrong-password' });
     const noUser = await anon.call('POST', '/api/auth/login', { email: `nobody-${run}@filenest-test.dev`, password: 'wrong-password' });
     check('wrong password and unknown email give the same answer', wrongPw.status === 401 && noUser.status === 401 && wrongPw.data.error === noUser.data.error);
@@ -95,6 +96,14 @@ const main = async () => {
     check('list files of her folder → empty', ((await b.call('GET', `/api/files?folder_id=${folder.id}`)).data.files || []).length === 0);
     check('search does not find her files', ((await b.call('GET', '/api/files?search=secret')).data.files || []).length === 0);
     check('share her file → 404', (await b.call('POST', '/api/shares', { resource_type: 'file', resource_id: file.id })).status === 404);
+    check('star her file → 404', (await b.call('PATCH', `/api/files/${file.id}/star`, { starred: true })).status === 404);
+    await a.call('PATCH', `/api/files/${file.id}/star`, { starred: true });
+    check("her starred files aren't in other users' Starred", ((await b.call('GET', '/api/drive/starred')).data.files || []).length === 0);
+    check("her files aren't in other users' Recent", !((await b.call('GET', '/api/drive/recent')).data.files || []).some((f) => f.id === file.id));
+    check("drive search doesn't find her files", ((await b.call('GET', '/api/drive/search?q=secret')).data.files || []).length === 0);
+    check("her folders aren't in other users' Move picker", !((await b.call('GET', '/api/drive/folders')).data.folders || []).some((f) => f.id === folder.id));
+    const statsB = (await b.call('GET', '/api/drive/stats')).data;
+    check('storage stats only count your own files', statsB.counts?.files === 1);
 
     console.log("\nOther users can't reach Alice's folders");
     check('folder details → 404', (await b.call('GET', `/api/folders/${folder.id}`)).status === 404);
@@ -103,6 +112,7 @@ const main = async () => {
     check('move own file into it → 404', (await b.call('PATCH', `/api/files/${bobFile.id}/move`, { target_folder: folder.id })).status === 404);
     check('move own folder into it → 404', (await b.call('PATCH', `/api/folders/${bobFolder.id}/move`, { target_parent: folder.id })).status === 404);
     check('rename → 404', (await b.call('PATCH', `/api/folders/${folder.id}/rename`, { name: 'Hacked' })).status === 404);
+    check('star → 404', (await b.call('PATCH', `/api/folders/${folder.id}/star`, { starred: true })).status === 404);
     check('trash → 404', (await b.call('DELETE', `/api/folders/${folder.id}`)).status === 404);
 
     console.log('\nInput handling');
@@ -127,6 +137,7 @@ const main = async () => {
     check('expiry in the past → 400', (await a.call('POST', '/api/shares', { resource_type: 'file', resource_id: file.id, expires_at: '2001-01-01' })).status === 400);
     check('unknown permission → 400', (await a.call('POST', '/api/shares', { resource_type: 'file', resource_id: file.id, permission: 'admin' })).status === 400);
     check("other users can't revoke her link → 404", (await b.call('DELETE', `/api/shares/${fileLink.id}`)).status === 404);
+    check("other users can't change her link → 404", (await b.call('PATCH', `/api/shares/${fileLink.id}`, { permission: 'view' })).status === 404);
     check("other users don't see her links", !((await b.call('GET', '/api/shares')).data.share_links || []).some((l) => l.id === fileLink.id));
 
     const pubFile = await anon.call('GET', `/api/shares/access/${fileLink.token}`);

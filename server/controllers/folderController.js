@@ -62,9 +62,17 @@ export const getFolders = async (req, res) => {
             return res.status(404).json({ error: "Folder not found." });
         }
 
+        // With what each folder holds: direct files and subfolders, and the size of everything inside
         const folders = await sql`
-        SELECT * FROM folders
-        WHERE owner_id = ${req.user.id} AND parent_id IS NOT DISTINCT FROM ${parentId} AND is_trashed = false ORDER BY name ASC`;
+        SELECT f.*,
+            (SELECT COUNT(*)::int FROM files fi WHERE fi.folder_id = f.id AND fi.is_trashed = false) AS file_count,
+            (SELECT COUNT(*)::int FROM folders c WHERE c.parent_id = f.id AND c.is_trashed = false) AS folder_count,
+            (SELECT COALESCE(SUM(fi.size), 0)::bigint FROM files fi
+              WHERE fi.is_trashed = false AND fi.owner_id = f.owner_id
+                AND (fi.folder_id = f.id OR fi.folder_id IN (SELECT d.id FROM folders d WHERE d.path @> ARRAY[f.id] AND d.is_trashed = false))) AS total_size,
+            EXISTS (SELECT 1 FROM share_links s WHERE s.resource_id = f.id AND (s.expires_at IS NULL OR s.expires_at > NOW())) AS is_shared
+        FROM folders f
+        WHERE f.owner_id = ${req.user.id} AND f.parent_id IS NOT DISTINCT FROM ${parentId} AND f.is_trashed = false ORDER BY f.name ASC`;
 
         return res.status(200).json({ folders });
     } catch (error) {
