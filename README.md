@@ -63,3 +63,14 @@ The API creates its tables on first start.
 ## Security checks
 
 With the API running, `npm run test:security` creates two throwaway accounts and runs 68 checks: logged-out visitors are refused, users can only reach their own files, folders, links and trash, public links expose only what they should, and storage quotas hold. It deletes everything it created when it finishes.
+
+## Demo data
+
+Set `DEMO_EMAIL`, `DEMO_PASSWORD` and `SEED_PASSWORD` in `server/.env`, start the API, then:
+
+```bash
+npm run seed                          # demo account + two other accounts
+npm run seed -- --with you@email.com  # also fill your own account
+```
+
+Set `VITE_DEMO_EMAIL` in `client/.env` to show "Explore with a demo account" on the login page.

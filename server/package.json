@@ -10,7 +10,8 @@
     "dev": "nodemon server.js",
     "server": "nodemon server.js",
     "bucket": "node scripts/create-bucket.mjs",
-    "test:security": "node scripts/security-test.mjs"
+    "test:security": "node scripts/security-test.mjs",
+    "seed": "node scripts/seed.mjs"
   },
   "type": "module",
   "dependencies": {
@@ -30,5 +31,10 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "scripts/*"
+    ]
   }
 }
