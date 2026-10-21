@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import { RotateCcwIcon, StarIcon } from 'lucide-react'
 import api from '../config/api'
 import { useDriveData } from '../hooks/useDriveData'
 import { useLocalPref } from '../hooks/useLocalPref'
+import { useSelection } from '../hooks/useSelection'
+import SelectionBar from '../components/drive/SelectionBar'
 import ItemCollection, { CollectionSkeleton } from '../components/drive/ItemCollection'
 import ViewControls from '../components/drive/ViewControls'
 import EmptyState from '../components/ui/EmptyState'
@@ -11,6 +14,8 @@ const Starred = () => {
   const [view, setView] = useLocalPref('filenest-view', 'grid', ['grid', 'list']);
   const { data, loading, error, reload } = useDriveData(() => api.get('/api/drive/starred').then((r) => r.data), 'starred');
   const empty = data && !data.files.length && !data.folders.length;
+  const listed = useMemo(() => (data ? [...data.folders, ...data.files] : []), [data]);
+  const selection = useSelection(listed, 'starred');
 
   return (
     <div className="animate-fade-up">
@@ -31,7 +36,10 @@ const Starred = () => {
           Open the ⋯ menu on any file or folder and choose “Add to Starred” to keep it here.
         </EmptyState>
       ) : (
-        <ItemCollection folders={data.folders} files={data.files} view={view} showLocation />
+        <>
+          <ItemCollection folders={data.folders} files={data.files} view={view} showLocation selection={selection} />
+          <SelectionBar selection={selection} total={listed.length} />
+        </>
       )}
     </div>
   );

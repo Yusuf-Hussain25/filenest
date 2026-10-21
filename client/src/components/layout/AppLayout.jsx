@@ -37,7 +37,7 @@ const Shell = () => {
         <Sidebar />
         <div className="min-w-0 flex-1">
           <Topbar onSearch={() => setSearchOpen(true)} />
-          <main id="main" className="pt-3 pb-40 lg:pt-7 lg:pb-14 lg:pr-3">
+          <main id="main" className="pt-3 pb-40 lg:pt-7 lg:pb-28 lg:pr-3">
             <Outlet />
           </main>
         </div>

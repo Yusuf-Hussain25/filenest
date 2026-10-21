@@ -60,18 +60,31 @@ export const ActionsProvider = ({ children }) => {
         }
     }, [changed]);
 
-    const moveItem = useCallback(async (item, targetId) => {
+    // Many files and folders in one request: { action, files, folders, ...extra }
+    const bulk = useCallback((action, items, extra = {}) => api.post("/api/drive/bulk", {
+        action,
+        files: items.filter((i) => !isFolder(i)).map((i) => i.id),
+        folders: items.filter(isFolder).map((i) => i.id),
+        ...extra,
+    }), []);
+
+    const moveItems = useCallback(async (items, targetId) => {
         try {
-            const body = isFolder(item) ? { target_parent: targetId } : { target_folder: targetId };
-            await api.patch(`/api/${endpoint(item)}/${item.id}/move`, body);
-            toast.success(`Moved "${item.name}"`);
+            if (items.length === 1) {
+                const [item] = items;
+                const body = isFolder(item) ? { target_parent: targetId } : { target_folder: targetId };
+                await api.patch(`/api/${endpoint(item)}/${item.id}/move`, body);
+            } else {
+                await bulk("move", items, { target_folder: targetId });
+            }
+            toast.success(items.length === 1 ? `Moved "${items[0].name}"` : `Moved ${items.length} items`);
             changed();
             return true;
         } catch (err) {
             toast.error(errorMessage(err, "Could not move it."));
             return false;
         }
-    }, [changed]);
+    }, [bulk, changed]);
 
     const toggleStar = useCallback(async (item) => {
         const starred = !item.is_starred;
@@ -132,6 +145,54 @@ export const ActionsProvider = ({ children }) => {
         }
     }, []);
 
+    // Multi-select actions. Each resolves true when it worked, so the selection can be cleared.
+    const starMany = useCallback(async (items, starred) => {
+        try {
+            await bulk(starred ? "star" : "unstar", items);
+            toast.success(starred ? `Starred ${items.length} items` : `Removed ${items.length} items from Starred`);
+            changed();
+            return true;
+        } catch (err) {
+            toast.error(errorMessage(err, "Could not update Starred."));
+            return false;
+        }
+    }, [bulk, changed]);
+
+    const trashMany = useCallback(async (items) => {
+        try {
+            await bulk("trash", items);
+            changed();
+            refreshUser();
+            toast((t) => (
+                <span className="flex items-center gap-3">
+                    <span>Moved {items.length} items to Trash</span>
+                    <button
+                        className="shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-accent-text hover:bg-surface-2"
+                        onClick={async () => {
+                            toast.dismiss(t.id);
+                            const results = await Promise.all(items.map((i) => restore(i, { quiet: true })));
+                            if (results.every(Boolean)) toast.success(`Restored ${items.length} items`);
+                        }}
+                    >
+                        Undo
+                    </button>
+                </span>
+            ), { duration: 6000, icon: "🗑️" });
+            return true;
+        } catch (err) {
+            toast.error(errorMessage(err, "Could not move them to Trash."));
+            return false;
+        }
+    }, [bulk, changed, refreshUser, restore]);
+
+    // One file downloads as itself; anything more comes as one ZIP
+    const downloadMany = useCallback((items) => {
+        if (items.length === 1) return download(items[0]);
+        const files = items.filter((i) => !isFolder(i)).map((i) => i.id);
+        const folders = items.filter(isFolder).map((i) => i.id);
+        return downloadZip("/api/drive/zip", { ...(files.length ? { files: files.join(",") } : {}), ...(folders.length ? { folders: folders.join(",") } : {}) });
+    }, [download]);
+
     // Menu items for a file or folder (Menu / MenuPopover format)
     const menuFor = useCallback((item, list) => {
         const folder = isFolder(item);
@@ -142,7 +203,7 @@ export const ActionsProvider = ({ children }) => {
             { separator: true },
             { label: item.is_starred ? "Remove from Starred" : "Add to Starred", icon: item.is_starred ? StarOffIcon : StarIcon, onClick: () => toggleStar(item) },
             { label: "Rename", icon: PencilIcon, onClick: () => setDialog({ type: "rename", item }) },
-            { label: "Move to…", icon: FolderInputIcon, onClick: () => setDialog({ type: "move", item }) },
+            { label: "Move to…", icon: FolderInputIcon, onClick: () => setDialog({ type: "move", items: [item] }) },
             folder && { label: "New folder inside", icon: FolderPlusIcon, onClick: () => newFolder(item.id, item.name) },
             { separator: true },
             { label: "Move to Trash", icon: Trash2Icon, danger: true, onClick: () => trash(item) },
@@ -153,14 +214,18 @@ export const ActionsProvider = ({ children }) => {
         open,
         newFolder,
         rename: (item) => setDialog({ type: "rename", item }),
-        move: (item) => setDialog({ type: "move", item }),
+        move: (item) => setDialog({ type: "move", items: [item] }),
+        moveMany: (items) => setDialog({ type: "move", items }),
+        starMany,
+        trashMany,
+        downloadMany,
         share: (item) => setDialog({ type: "share", item }),
         toggleStar,
         trash,
         restore,
         download,
         menuFor,
-    }), [open, newFolder, toggleStar, trash, restore, download, menuFor]);
+    }), [open, newFolder, toggleStar, trash, restore, download, menuFor, starMany, trashMany, downloadMany]);
 
     return (
         <ActionsContext.Provider value={value}>
@@ -200,7 +265,7 @@ export const ActionsProvider = ({ children }) => {
                     onSubmit={(name) => renameItem(dialog.item, name)}
                 />
             )}
-            {dialog?.type === "move" && <MoveModal item={dialog.item} onClose={close} onMove={moveItem} />}
+            {dialog?.type === "move" && <MoveModal items={dialog.items} onClose={close} onMove={moveItems} />}
             {dialog?.type === "share" && <ShareModal item={dialog.item} onClose={close} />}
         </ActionsContext.Provider>
     );

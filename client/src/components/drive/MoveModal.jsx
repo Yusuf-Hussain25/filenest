@@ -6,12 +6,17 @@ import api from '../../config/api'
 import { useDriveData } from '../../hooks/useDriveData'
 import { isFolder } from '../../lib/files'
 
-// "Move to" picker: the whole folder tree, with the item itself and its subfolders disabled.
-const MoveModal = ({ item, onClose, onMove }) => {
-  const folderItem = isFolder(item);
-  const currentParent = (folderItem ? item.parent_id : item.folder_id) ?? null;
+const parentOf = (i) => (isFolder(i) ? i.parent_id : i.folder_id) ?? null;
+
+// "Move to" picker: the whole folder tree, with the moved folders and their subfolders disabled.
+// Takes one item or several (multi-select).
+const MoveModal = ({ items, onClose, onMove }) => {
+  const movingFolders = useMemo(() => new Set(items.filter(isFolder).map((i) => i.id)), [items]);
+  // Where they all are now (undefined when they come from different folders)
+  const parents = new Set(items.map(parentOf));
+  const currentParent = parents.size === 1 ? [...parents][0] : undefined;
   const { data, loading, error } = useDriveData(() => api.get('/api/drive/folders').then((r) => r.data.folders), 'move-tree');
-  const [target, setTarget] = useState(currentParent);
+  const [target, setTarget] = useState(currentParent ?? null);
   const [expanded, setExpanded] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
 
@@ -22,10 +27,10 @@ const MoveModal = ({ item, onClose, onMove }) => {
       const key = f.parent_id ?? 'root';
       if (!byParent.has(key)) byParent.set(key, []);
       byParent.get(key).push(f);
-      if (folderItem && (f.id === item.id || f.path?.includes(item.id))) blockedIds.add(f.id);
+      if (movingFolders.has(f.id) || f.path?.some((p) => movingFolders.has(p))) blockedIds.add(f.id);
     });
     return { children: byParent, blocked: blockedIds };
-  }, [data, folderItem, item.id]);
+  }, [data, movingFolders]);
 
   // Open the branch that holds the current location
   const [didExpand, setDidExpand] = useState(false);
@@ -44,7 +49,7 @@ const MoveModal = ({ item, onClose, onMove }) => {
 
   const move = async () => {
     setBusy(true);
-    const ok = await onMove(item, target);
+    const ok = await onMove(items, target);
     setBusy(false);
     if (ok) onClose();
   };
@@ -93,7 +98,7 @@ const MoveModal = ({ item, onClose, onMove }) => {
     <Modal
       open
       onClose={busy ? undefined : onClose}
-      title={`Move "${item.name}"`}
+      title={items.length === 1 ? `Move "${items[0].name}"` : `Move ${items.length} items`}
       subtitle="Choose a destination folder"
       icon={<FolderInputIcon size={19} />}
       footer={

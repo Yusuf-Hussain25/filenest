@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowRightIcon, EllipsisIcon, FolderOpenIcon, FolderPlusIcon, FolderXIcon, Link2Icon, RotateCcwIcon, StarIcon, UploadIcon } from 'lucide-react'
 import api from '../config/api'
@@ -7,6 +7,8 @@ import { useActions } from '../context/ActionsContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useDriveData } from '../hooks/useDriveData'
 import { useLocalPref } from '../hooks/useLocalPref'
+import { useSelection } from '../hooks/useSelection'
+import SelectionBar from '../components/drive/SelectionBar'
 import Breadcrumbs from '../components/drive/Breadcrumbs'
 import ViewControls from '../components/drive/ViewControls'
 import ItemCollection, { CollectionSkeleton } from '../components/drive/ItemCollection'
@@ -50,6 +52,8 @@ const Drive = () => {
   );
 
   const { data, loading, error } = listing;
+  const listed = useMemo(() => (data ? [...data.folders, ...data.files] : []), [data]);
+  const selection = useSelection(listed, folderId || 'root');
   const folder = data?.folder;
 
   // Uploads and "New folder" go to the folder on screen
@@ -160,7 +164,8 @@ const Drive = () => {
         </div>
       ) : (
         <>
-          <ItemCollection folders={data.folders} files={data.files} view={view} />
+          <ItemCollection folders={data.folders} files={data.files} view={view} selection={selection} />
+          <SelectionBar selection={selection} total={listed.length} />
           {data.total > data.files.length && (
             <p className="mt-6 text-center text-sm text-fg-3">
               Showing the first {data.files.length} of {data.total} files. Use search (⌘K) to find the rest.

@@ -2,6 +2,8 @@ import { ClockIcon, RotateCcwIcon } from 'lucide-react'
 import api from '../config/api'
 import { useDriveData } from '../hooks/useDriveData'
 import { useLocalPref } from '../hooks/useLocalPref'
+import { useSelection } from '../hooks/useSelection'
+import SelectionBar from '../components/drive/SelectionBar'
 import ItemCollection, { CollectionSkeleton } from '../components/drive/ItemCollection'
 import ViewControls from '../components/drive/ViewControls'
 import EmptyState from '../components/ui/EmptyState'
@@ -11,6 +13,8 @@ import { dayGroup } from '../lib/format'
 const Recent = () => {
   const [view, setView] = useLocalPref('filenest-view', 'grid', ['grid', 'list']);
   const { data, loading, error, reload } = useDriveData(() => api.get('/api/drive/recent', { params: { limit: 40 } }).then((r) => r.data.files), 'recent');
+
+  const selection = useSelection(data || [], 'recent');
 
   const groups = [];
   (data || []).forEach((f) => {
@@ -41,9 +45,10 @@ const Recent = () => {
           {groups.map((g) => (
             <section key={g.label}>
               <h2 className="mb-3 text-[13px] font-semibold text-fg-2">{g.label}</h2>
-              <ItemCollection files={g.files} view={view} showLocation titles={false} />
+              <ItemCollection files={g.files} view={view} showLocation titles={false} selection={selection} />
             </section>
           ))}
+          <SelectionBar selection={selection} total={data.length} />
         </div>
       )}
     </div>

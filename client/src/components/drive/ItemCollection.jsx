@@ -37,7 +37,7 @@ export const CollectionSkeleton = ({ view = 'grid', folders = 4, files = 8 }) =>
 );
 
 // Folders, then files, as a grid of cards or a list with columns
-const ItemCollection = ({ folders = [], files = [], view = 'grid', showLocation = false, titles = true }) => {
+const ItemCollection = ({ folders = [], files = [], view = 'grid', showLocation = false, titles = true, selection }) => {
   const all = [...folders, ...files];
 
   if (view === 'list') {
@@ -47,8 +47,8 @@ const ItemCollection = ({ folders = [], files = [], view = 'grid', showLocation 
           <span>Name</span><span>Last activity</span><span>Size</span><span />
         </div>
         <ul className="mt-1 space-y-0.5">
-          {folders.map((f) => <ItemRow key={f.id} item={f} list={all} isFolderItem showLocation={showLocation} />)}
-          {files.map((f) => <ItemRow key={f.id} item={f} list={all} showLocation={showLocation} />)}
+          {folders.map((f) => <ItemRow key={f.id} item={f} list={all} isFolderItem showLocation={showLocation} selection={selection} />)}
+          {files.map((f) => <ItemRow key={f.id} item={f} list={all} showLocation={showLocation} selection={selection} />)}
         </ul>
       </div>
     );
@@ -60,7 +60,7 @@ const ItemCollection = ({ folders = [], files = [], view = 'grid', showLocation 
         <section>
           {titles && <SectionTitle count={folders.length}>Folders</SectionTitle>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {folders.map((f) => <FolderCard key={f.id} folder={f} list={all} showLocation={showLocation} />)}
+            {folders.map((f) => <FolderCard key={f.id} folder={f} list={all} showLocation={showLocation} selection={selection} />)}
           </div>
         </section>
       )}
@@ -68,7 +68,7 @@ const ItemCollection = ({ folders = [], files = [], view = 'grid', showLocation 
         <section>
           {titles && <SectionTitle count={files.length}>Files</SectionTitle>}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {files.map((f) => <FileCard key={f.id} file={f} list={all} />)}
+            {files.map((f) => <FileCard key={f.id} file={f} list={all} selection={selection} />)}
           </div>
         </section>
       )}

@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/auth.js";
 import { selectionZip } from "../controllers/zipController.js";
+import { bulkAction } from "../controllers/bulkController.js";
 import { getFolderTree, getRecent, getStarred, getStats, searchDrive } from "../controllers/driveController.js";
 
 const driveRouter = express.Router()
@@ -13,5 +14,6 @@ driveRouter.get("/search", searchDrive)
 driveRouter.get("/folders", getFolderTree)
 driveRouter.get("/stats", getStats)
 driveRouter.get("/zip", selectionZip)
+driveRouter.post("/bulk", bulkAction)
 
 export default driveRouter

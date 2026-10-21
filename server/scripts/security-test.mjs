@@ -115,6 +115,10 @@ const main = async () => {
     check('move own folder into it → 404', (await b.call('PATCH', `/api/folders/${bobFolder.id}/move`, { target_parent: folder.id })).status === 404);
     check('rename → 404', (await b.call('PATCH', `/api/folders/${folder.id}/rename`, { name: 'Hacked' })).status === 404);
     check('star → 404', (await b.call('PATCH', `/api/folders/${folder.id}/star`, { starred: true })).status === 404);
+    check('bulk trash with one of her files → 404, nothing changes', (await b.call('POST', '/api/drive/bulk', { action: 'trash', files: [bobFile.id, file.id] })).status === 404
+        && ((await b.call('GET', '/api/files')).data.files || []).some((f) => f.id === bobFile.id));
+    check('bulk star her folder → 404', (await b.call('POST', '/api/drive/bulk', { action: 'star', folders: [folder.id] })).status === 404);
+    check('bulk move own file into her folder → 404', (await b.call('POST', '/api/drive/bulk', { action: 'move', files: [bobFile.id], target_folder: folder.id })).status === 404);
     check('ZIP of her folder → 404', (await b.call('GET', `/api/folders/${folder.id}/zip?check=1`)).status === 404);
     check('ZIP of a selection with her items → 404', (await b.call('GET', `/api/drive/zip?check=1&files=${bobFile.id}&folders=${folder.id}`)).status === 404);
     check('folder upload into it → 404', (await b.call('POST', '/api/folders/paths', { parent_id: folder.id, paths: ['Intruder/Deep'] })).status === 404);
@@ -134,6 +138,8 @@ const main = async () => {
     check('folder upload rejects bad names', (await a.call('POST', '/api/folders/paths', { paths: ['ok/' + 'x'.repeat(300)] })).status === 400);
     check('duplicate folder name → 400', (await a.call('POST', '/api/folders', { name: 'private' })).status === 400);
     check('% in search is literal text', ((await a.call('GET', '/api/files?search=%25')).data.files || []).length === 0);
+    check('bulk move a folder into its own subfolder → 400', (await a.call('POST', '/api/drive/bulk', { action: 'move', folders: [folder.id], target_folder: sub.id })).status === 400);
+    check('bulk star works for the owner', (await a.call('POST', '/api/drive/bulk', { action: 'star', folders: [other.id], files: [loose.id] })).data.count === 2);
     check('move a folder into its own subfolder → 400', (await a.call('PATCH', `/api/folders/${folder.id}/move`, { target_parent: sub.id })).status === 400);
 
     console.log('\nDirect uploads');
