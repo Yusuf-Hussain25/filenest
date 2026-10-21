@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import {Link, useParams} from 'react-router-dom'
 import api from '../config/api'
-import { Spinner } from '../components/ui/Spinner'
+import { Spinner } from '../components/legacy/Spinner'
 import { DownloadIcon, LockIcon, LucideFolder } from 'lucide-react'
-import { Button } from '../components/ui/Button'
+import { Button } from '../components/legacy/Button'
 import { formatBytes, getFileIcon } from '../assets/assets'
 
 const SharedWithMe = () => {

@@ -1,6 +1,6 @@
 import {Navigate, Outlet, useLocation} from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
-import { Spinner } from '../ui/Spinner'
+import { Spinner } from '../legacy/Spinner'
 
 const ProtectedRoute = ({children}) => {
     const {isAuthenticated, isLoading} = useApp()

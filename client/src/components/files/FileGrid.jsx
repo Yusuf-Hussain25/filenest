@@ -1,7 +1,7 @@
 import React from 'react'
 import { useApp } from '../../context/AppContext'
-import { Spinner } from '../ui/Spinner'
-import { EmptyState } from '../ui/EmptyState'
+import { Spinner } from '../legacy/Spinner'
+import { EmptyState } from '../legacy/EmptyState'
 import FolderCard from '../folders/FolderCard'
 import FileCard from './FileCard'
 

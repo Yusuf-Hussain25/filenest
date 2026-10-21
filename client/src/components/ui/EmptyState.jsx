@@ -1,19 +1,15 @@
-import { FolderOpenIcon } from "lucide-react";
+// Friendly placeholder for views with nothing in them yet.
+const EmptyState = ({ icon, title, children, action, className = '' }) => (
+  <div className={`flex flex-col items-center justify-center px-6 py-14 text-center ${className}`}>
+    {icon && (
+      <span className="relative mb-5 grid size-16 place-items-center rounded-2xl border border-line bg-surface-2 text-accent-text shadow-glow">
+        {icon}
+      </span>
+    )}
+    <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+    {children && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{children}</p>}
+    {action && <div className="mt-6 flex flex-wrap justify-center gap-2">{action}</div>}
+  </div>
+);
 
-export function EmptyState({
-    title = "No items found",
-    description = "Drag & drop files here or click New to get started.",
-    icon: Icon = FolderOpenIcon,
-    action,
-}) {
-    return (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="size-16 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mb-4 text-slate-500">
-                <Icon className="size-8" />
-            </div>
-            <h3 className="text-base font-medium text-slate-900 mb-1">{title}</h3>
-            <p className="text-sm text-slate-500 max-w-sm mb-6">{description}</p>
-            {action && <div>{action}</div>}
-        </div>
-    );
-}
+export default EmptyState

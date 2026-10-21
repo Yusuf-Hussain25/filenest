@@ -1,6 +1,6 @@
 import React from 'react'
 import { formatBytes, getFileIcon } from '../../assets/assets'
-import { ItemDropdown } from '../ui/ItemDropdown'
+import { ItemDropdown } from '../legacy/ItemDropdown'
 import {format} from 'date-fns'
 
 const FileCard = ({ file, onPreview, onShare, onRename, onMove, onDelete}) => {

@@ -1,6 +1,6 @@
 import { LucideFolder } from 'lucide-react'
 import React from 'react'
-import { ItemDropdown } from '../ui/ItemDropdown'
+import { ItemDropdown } from '../legacy/ItemDropdown'
 
 const FolderCard = ({folder, onClick, onShare, onRename, onMove, onDelete}) => {
   return (

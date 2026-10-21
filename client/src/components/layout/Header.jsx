@@ -1,7 +1,7 @@
 import React from 'react'
 import { useApp } from '../../context/AppContext'
 import { ArrowUpDownIcon, LogOutIcon, MenuIcon, SearchIcon, UserIcon } from 'lucide-react'
-import { Dropdown, DropdownItem } from '../ui/Dropdown'
+import { Dropdown, DropdownItem } from '../legacy/Dropdown'
 import {SORT_OPTIONS} from "../../assets/assets"
 
 const Header = ({onMobileMenuToggle}) => {

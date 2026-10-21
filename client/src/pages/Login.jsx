@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
-import { Input } from '../components/ui/Input';
+import { Input } from '../components/legacy/Input';
 import { LockIcon, MailIcon, UserIcon } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '../components/legacy/Button';
 import { useApp } from '../context/AppContext';
 
 const Login = ({mode = "login"}) => {

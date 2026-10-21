@@ -1,12 +1,12 @@
 import { CheckIcon, CopyIcon, ExternalLinkIcon, Trash2Icon, UsersIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
-import { EmptyState } from '../components/ui/EmptyState'
-import { Spinner } from '../components/ui/Spinner'
+import { EmptyState } from '../components/legacy/EmptyState'
+import { Spinner } from '../components/legacy/Spinner'
 import { copyShareLink, getFileIcon } from '../assets/assets'
 import { format } from 'date-fns'
 import api from '../config/api'
 import toast from 'react-hot-toast'
-import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { ConfirmDialog } from '../components/legacy/ConfirmDialog'
 
 const SharedFile = () => {
 

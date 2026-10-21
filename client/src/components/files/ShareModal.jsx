@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Modal } from '../ui/Modal'
+import { Modal } from '../legacy/Modal'
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from 'lucide-react'
-import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
+import { Button } from '../legacy/Button'
+import { Input } from '../legacy/Input'
 import api from '../../config/api'
 import toast from 'react-hot-toast'
 

@@ -4,11 +4,11 @@ import { useDrive } from '../hooks/useDrive'
 import { useApp } from '../context/AppContext'
 import api from '../config/api'
 import toast from 'react-hot-toast'
-import { Button } from '../components/ui/Button'
-import { EmptyState } from '../components/ui/EmptyState'
-import { Spinner } from '../components/ui/Spinner'
+import { Button } from '../components/legacy/Button'
+import { EmptyState } from '../components/legacy/EmptyState'
+import { Spinner } from '../components/legacy/Spinner'
 import { formatBytes, getFileIcon } from '../assets/assets'
-import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { ConfirmDialog } from '../components/legacy/ConfirmDialog'
 
 function TrashItemCard({item, isFolder, onRestore, onDelete }){
   return (

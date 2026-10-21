@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { useDrive } from '../../hooks/useDrive'
-import { Modal } from '../ui/Modal'
-import { Input } from '../ui/Input'
-import { Button } from '../ui/Button'
+import { Modal } from '../legacy/Modal'
+import { Input } from '../legacy/Input'
+import { Button } from '../legacy/Button'
 
 const CreateFolderModal = ({isOpen, onClose}) => {
      const [name, setName] = useState("")

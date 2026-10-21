@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useDrive } from '../../hooks/useDrive'
-import { Modal } from '../ui/Modal'
+import { Modal } from '../legacy/Modal'
 import { HardDriveIcon, LucideFolder } from 'lucide-react'
-import { Button } from '../ui/Button'
+import { Button } from '../legacy/Button'
 import api from '../../config/api'
 
 const MoveModal = ({item, isOpen, onClose}) => {
