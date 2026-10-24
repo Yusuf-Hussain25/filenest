@@ -91,7 +91,7 @@ const Auth = ({ mode = 'login' }) => {
       {/* Mobile order: headline, auth card, preview. Desktop: hero left, card right. */}
       <main className="mx-auto grid w-full max-w-7xl gap-8 px-4 pb-16 sm:px-8 lg:grid-cols-[1.15fr_1fr] lg:gap-x-14 lg:pt-4">
         <section className="animate-fade-up lg:col-start-1 lg:row-start-1">
-          <span className="chip chip-accent"><SparklesIcon size={13} /> Filenest 2.0 is here</span>
+          <span className="chip chip-accent"><SparklesIcon size={13} /> Your files, organised and shareable</span>
           <h1 className="mt-5 text-[40px] leading-[1.04] font-semibold tracking-[-0.04em] sm:text-[56px]">
             Your files,<br /> <span className="gradient-text">safely nested.</span>
           </h1>
