@@ -34,6 +34,9 @@ app.use(express.json({limit: "1mb"}))
 
 // Root API
 app.get("/", (_req, res) => res.send("Filenest API is running"))
+// Health check for the host and the uptime monitor that keeps the free instance awake.
+// Deliberately skips the database, so pinging it doesn't keep Neon from sleeping.
+app.get("/api/health", (_req, res) => res.json({ ok: true }))
 
 // App API routes
 app.use("/api/auth", authRouter)
