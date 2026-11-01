@@ -2,6 +2,8 @@
 
 **Your files, safely nested.** Filenest is a full-stack cloud drive: upload files with live progress, organise them in nested folders, preview almost anything in the browser, and share public links you control (view-only or downloadable, with an expiry you can change or revoke at any time).
 
+**Live demo: [filenest.yusufhussain.in](https://filenest.yusufhussain.in)**. Use **Explore with a demo account** on the login page.
+
 ![Filenest: My Files in light mode](docs/screenshots/drive.png)
 
 ## What's new in 2.1
@@ -75,7 +77,7 @@ Filenest 2.0 was a full redesign and hardening of a basic course project ("Drive
 | Client | React 19, Vite 8, Tailwind CSS 4, React Router 7, Axios, lucide-react, react-hot-toast |
 | API | Node.js, Express 5, JWT in an httpOnly cookie, Multer, helmet, express-rate-limit |
 | Database | Postgres: Neon (serverless driver) in production, plain Postgres locally (node-postgres) |
-| File storage | Any S3-compatible bucket via AWS SDK v3 with presigned URLs: Cloudflare R2, AWS S3, or RustFS locally |
+| File storage | Any S3-compatible bucket via AWS SDK v3 with presigned URLs: Backblaze B2, Cloudflare R2, AWS S3, or RustFS locally |
 | Tooling | oxlint, nodemon, concurrently, Docker Compose for local services |
 
 ## Project structure
@@ -162,7 +164,7 @@ With the API running, `npm run test:security` creates two throwaway accounts and
 | What | Local (default) | Production |
 |---|---|---|
 | Database | Plain Postgres in Docker, used through node-postgres | Neon: any `DATABASE_URL` containing `neon.tech` uses Neon's serverless driver |
-| File storage | RustFS (S3-compatible) in Docker | Cloudflare R2, AWS S3 or any S3-compatible service: just change the `AWS_*` values |
+| File storage | RustFS (S3-compatible) in Docker | Backblaze B2, Cloudflare R2, AWS S3 or any S3-compatible service: just change the `AWS_*` values |
 | Uploads (`VITE_UPLOAD_MODE`) | `direct`: presigned PUT straight to the bucket (needs bucket CORS, set by `npm run bucket`) | `server`: through the API (max 100 MB per file, no CORS needed). If the bucket can't be reached, the app falls back to `server` for the session |
 
 Both are switched by `.env` alone. `config/db.js` gives node-postgres the same tagged-template `sql`, `sql.unsafe` and `sql.transaction` API as Neon, so no query code changes. Files are served through short-lived presigned URLs, so the bucket stays private and needs no CORS setup.
@@ -183,20 +185,25 @@ Set `VITE_DEMO_EMAIL` in `client/.env` to show "Explore with a demo account". Th
 
 ## Deployment
 
-**Database and storage:** create a Neon database and an R2 bucket (or S3), and put their values in the API's environment.
+The live demo runs entirely on free tiers with no card: the client on **Vercel** (`filenest.yusufhussain.in`), the API on a **Render** free web service (`filenest-api.yusufhussain.in`), Postgres on **Neon** (both in Singapore) and files in **Backblaze B2** (10 GB free). Pushes to `main` deploy both; Render only rebuilds when `server/` changes. The client and API share a parent domain, so the login cookie is first-party.
 
-**API (Render, free web service):** ZIP downloads stream for as long as they take, and uploads through the API can reach 100 MB, which doesn't fit serverless limits, so the API runs as a normal Node service.
-1. Render → **New → Web Service** → connect the GitHub repo
-2. Root directory `server`, build command `npm install`, start command `npm start`
-3. Environment: everything from `server/.env`, plus `NODE_ENV=production` (secure, cross-site cookies) and `ORIGINS=https://<your-app>.vercel.app`
-4. Run `npm run bucket` once (locally, with the production `AWS_*` and `ORIGINS` values) so the bucket allows direct uploads from your app
+**Database and storage**
+1. A Neon database (here created from Vercel → Storage → Neon, region Singapore). Tables are created on first start.
+2. Backblaze B2 → **Create a Bucket** (Private) → **Application Keys → Add a New Application Key** for that bucket (Read and Write). `AWS_ENDPOINT_URL_S3` is the bucket's endpoint (e.g. `https://s3.eu-central-003.backblazeb2.com`), `AWS_REGION` its region (`eu-central-003`), the key ID and application key go in `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. Cloudflare R2 or AWS S3 work the same way.
+3. Run `npm run bucket` once with the production `AWS_*` and `ORIGINS` values so the bucket accepts direct uploads from your site (CORS).
+
+**API (Render, free web service):** ZIP downloads stream for as long as they take and uploads through the API can be large, which doesn't fit serverless limits (4.5 MB per response on Vercel), so the API runs as a normal Node service.
+1. Render → **New → Web Service** → the GitHub repo, root directory `server`, build `npm ci`, start `npm start`, health check `/api/health`, plan **Free**, region next to the database
+2. Environment: everything from `server/.env` with production values, plus `NODE_ENV=production` (secure, cross-site cookies) and `ORIGINS` set to the client URLs. The demo uses lower limits to protect the free tiers: `MAX_FILE_SIZE=52428800` (50 MB), `MAX_STORAGE_PER_USER=262144000` (250 MB), `ZIP_MAX_BYTES=104857600` (100 MB)
+3. Optional custom domain: **Custom Domains** on the service, then a **CNAME** `<sub>` → `<service>.onrender.com` at your DNS provider
+4. Seed it: `API_URL=https://<api> npm run seed` with the same `JWT_SECRET` and `DATABASE_URL` as the service
+
+**Keeping the free API awake:** Render spins free services down after 15 idle minutes (about a minute to wake). A free [UptimeRobot](https://uptimerobot.com) monitor on `/api/health` every 5 minutes keeps it up. An always-on service uses about 744 of the 750 free hours each Render workspace gets per month, so Filenest has a workspace of its own.
 
 **Client (Vercel):**
 1. Vercel → **Add New → Project** → import the repo, root directory `client` (Vite is detected)
-2. Environment variables: `VITE_BASE_URL=https://<your-api>.onrender.com` and optionally `VITE_DEMO_EMAIL`
+2. Environment variables: `VITE_BASE_URL` (the API URL) and optionally `VITE_DEMO_EMAIL`
 3. `client/vercel.json` already rewrites every path to `index.html`, so `/folder/:id` and `/s/:token` links work
-
-Safari blocks third-party cookies, so if the API and app are on different domains, proxy the API through Vercel: add `{ "source": "/api/(.*)", "destination": "https://<your-api>.onrender.com/api/$1" }` before the SPA rewrite in `client/vercel.json`, set `VITE_BASE_URL=/`, and use the Vercel URL in `ORIGINS`.
 
 ## Author
 
