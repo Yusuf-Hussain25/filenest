@@ -10,3 +10,6 @@ dist
 node-compile-cache
 # local assistant routing notes, not part of the project
 CLAUDE.md
+
+# Vercel CLI link
+.vercel
